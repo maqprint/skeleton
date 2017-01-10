@@ -1,0 +1,27 @@
+{
+	"name": "projet",
+    "authors": [
+        {
+            "name": "Maqprint",
+            "email": "dev@maqprint.fr"
+        }
+    ],
+	"autoload": {
+		"psr-4": {
+            "controllers\\": "app/controllers",
+            "puppets\\": "app/models/puppets",
+            "monnamespace\\": "app/models/monnamespace"
+
+		}
+	},
+    "require": {
+		"silex/silex": "~2.0",
+        "silex/web-profiler": "^2.0",
+    	"twig/twig": "^1.28",
+        "doctrine/dbal": "~2.2",
+		"symfony/twig-bridge": "^3.2",
+		"symfony/security": "~2.8|3.0.*",
+		"symfony/asset": "^3.2",
+		"sami/sami": "3.0.*"
+    }
+}
