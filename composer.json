@@ -10,7 +10,7 @@
 		"psr-4": {
             "controllers\\": "app/controllers",
             "puppets\\": "app/models/puppets",
-            "monnamespace\\": "app/models/monnamespace"
+            "mon_namespace\\": "app/models/monnamespace"
 
 		}
 	},
