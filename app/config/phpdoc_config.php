@@ -11,8 +11,8 @@ $iterator = Symfony\Component\Finder\Finder::create()
 $options = [
 'theme'                => 'default',
 'title'                => 'Silex Project Documentation',
-'build_dir'            => __DIR__ . '/../../public/documentation/build',
-'cache_dir'            => __DIR__ . '/../../public/documentation/cache',
+'build_dir'            => __DIR__ . '/../documentation/build',
+'cache_dir'            => __DIR__ . '/../documentation/cache',
 ];
 
 $sami = new Sami\Sami($iterator, $options);
