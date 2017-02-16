@@ -45,7 +45,6 @@ class HomeController
      * @return void
      */
     public function index(Application $app) {
-        $var = "World";
-        return $app['twig']->render('layout.html.twig', array('var' => $var));
+        return $app['twig']->render('layout.html.twig');
     }
 }
