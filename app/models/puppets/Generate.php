@@ -68,7 +68,7 @@ class Generate
      * @return array $res 'tableau contenant les champs de la table
      */
     public function getField($table) {
-        $res = $this->db->query("describe $table");
+        $res = $this->db->query("describe `$table`");
         if ($res->num_rows < 1){
             throw new \Exception("Merci de saisir une table existante dans votre base de donnée", 1);
         }
