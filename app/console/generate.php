@@ -39,8 +39,15 @@ if(!is_dir($path)) {
 
 switch (strtolower($action)) {
     case 'help':
-        print_r("AIDE");
-        break;
+        print_r("\n ****** Bienvenu dans l'aide du générateur ****** \n\n");
+        print_r("Générer une entité	                            php generate.php entity:[namespace]:[table] \n\n");
+        print_r("Générer un modèle	                            php generate.php model:[namespace]:[table] \n\n");
+        print_r("Générer un contrôleur	                            php generate.php controller:[namespace]:[table] \n\n");
+        print_r("Générer les vues (index, show, edit, add)	    php generate.php view:[namespace]:[table] \n\n");
+        print_r("Générer les routes	                            php generate.php route:[namespace]:[table] \n\n");
+        print_r("Générer entité/modèle/contrôleur/vues/routes	    php generate.php crud:[namespace]:[table] \n\n");
+        print_r("Générer toutes les entités	                    php generate.php entities:[namespace] \n\n");
+        print_r("Générer tout un projet	                            php generate.php project:[namespace] \n\n");        break;
     case 'entity':
         $table = $array[2];
         $generate->generateOneEntity($table, $namespace);
