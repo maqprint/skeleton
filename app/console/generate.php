@@ -38,6 +38,9 @@ if(!is_dir($path)) {
 }
 
 switch (strtolower($action)) {
+    case 'help':
+        print_r("AIDE");
+        break;
     case 'entity':
         $table = $array[2];
         $generate->generateOneEntity($table, $namespace);
