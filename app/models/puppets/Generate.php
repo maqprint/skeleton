@@ -452,19 +452,7 @@ class Generate
                 return false;
             }
         } else {
-            $register  = "\n";
-            $register .= "\$app['models.".$objectName."'] = function (\$app) {\n";
-            $register .= "   return new \\$namespace\\".$className."(\$app['db']);\n";
-            $register .= "};\n";
-
-            if($file = fopen("../config/common.php", "a")) {
-                if(!fwrite($file, $register)) {
-                    return false;
-                };
-                if(!fclose($file)) {
-                    return false;
-                };
-            }
+                echo "* Le fichier a été regénéré ! \n";
         }
 
         if($file = fopen(__DIR__."/../".$namespace."/entities/".$className.".php", "w+")) {
