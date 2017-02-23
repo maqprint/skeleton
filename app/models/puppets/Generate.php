@@ -68,7 +68,7 @@ class Generate
      * @return array $res 'tableau contenant les champs de la table
      */
     public function getField($table) {
-        $res = $this->db->query("describe `$table`");
+        $res = $this->db->query("describe $table");
         if ($res->num_rows < 1){
             throw new \Exception("Merci de saisir une table existante dans votre base de donnée", 1);
         }
@@ -104,7 +104,7 @@ class Generate
      *
      * @return void
      */
-    public function generateOneController($table) {
+    public function generateOneController($table, $namespace) {
         $res        = $this->getField($table);
         $arrayInfo  = $this->getInfos($table);
         $colId      = $res[0][0];
@@ -130,7 +130,7 @@ class Generate
         $controller .= "use Silex\Application;\n";
         $controller .= "use Symfony\Component\HttpFoundation\Request;\n";
         $controller .= "use Symfony\Component\HttpFoundation\Response;\n";
-        $controller .= "use models\\".$className.";\n\n";
+        $controller .= "use ".$namespace."\\".$className.";\n\n";
         $controller .= "/**\n";
         $controller .= " *\n";
         $controller .= " * PHP Version 7\n";
@@ -154,7 +154,7 @@ class Generate
         $controller .= "     * @return \$app\n";
         $controller .= "     */\n";
         $controller .= "    public function index(Application \$app) {\n";
-        $controller .= "        \$array_".$objectName." = \$app['models.".$objectName."']->getAll();\n";
+        $controller .= "        \$array_".$objectName." = ".ucfirst($objectName)."::getAll();\n";
         $controller .= "        return \$app['twig']->render('$objectName/index.html.twig', array('array_".$objectName."' => \$array_".$objectName."));\n";
         $controller .= "    }\n\n";
 
@@ -166,17 +166,18 @@ class Generate
         $controller .= "     * @return \$app\n";
         $controller .= "     */\n";
         $controller .= "    public function show(\$".$colId.", Application \$app) {\n";
-        $controller .= "         \$".$objectName." = \$app['models.".$objectName."']->getById(\$".$colId.");\n";
+        $controller .= "         \$".$objectName." = new ".ucfirst($objectName)."(); \n";
+        $controller .= "         \$".$objectName." = \$".$objectName."->getById(\$".$colId.");\n";
         $controller .= "        return \$app['twig']->render('$objectName/show.html.twig', array('$objectName' => $".$objectName."));\n";
         $controller .= "    }\n\n";
 
         $controller .= "    /**\n";
-        $controller .= "     *Function new\n";
+        $controller .= "     *Function add\n";
         $controller .= "     *\n";
         $controller .= "     * @param Application \$app '\n";
         $controller .= "     * @return \$app\n";
         $controller .= "     */\n";
-        $controller .= "    public function new(Application \$app) {\n";
+        $controller .= "    public function add(Application \$app) {\n";
         $controller .= "        return \$app['twig']->render('$objectName/new.html.twig');\n";
         $controller .= "    }\n\n";
 
@@ -189,8 +190,13 @@ class Generate
         $controller .= "     */\n";
         $controller .= "    public function create(Request \$request, Application \$app) {\n";
         $controller .= "        \$params = \$request->request->all();\n";
-        $controller .= "        \$app['models.".$objectName."']->insert(\$params);\n";
-        $controller .= "         return \$app->redirect('/".$objectName."');\n";
+        $controller .= "        $".$objectName." = new ".ucfirst($objectName)."();\n";
+        foreach ($res as $row) {
+            $controller .= "        \$".$objectName."->".$row[0]." = \$params['$row[0]'];\n";
+        }
+        $controller .= "        $".$objectName."->save();\n";
+        $controller .= "         \$redirect = \$app['url_generator']->generate('".$objectName."_index');\n";
+        $controller .= "         return \$app->redirect(\$redirect);\n";
         $controller .= "    }\n\n";
 
         $controller .= "    /**\n";
@@ -201,7 +207,8 @@ class Generate
         $controller .= "     * @return \$app\n";
         $controller .= "     */\n";
         $controller .= "    public function edit($".$colId.", Application \$app) {\n";
-        $controller .= "        \$".$objectName." = \$app['models.".$objectName."']->getById(\$".$colId.");\n";
+        $controller .= "        \$".$objectName." = new ".ucfirst($objectName)."();\n";
+        $controller .= "        \$".$objectName." = \$".$objectName."->getById(\$".$colId.");\n";
         $controller .= "        return \$app['twig']->render('$objectName/edit.html.twig', array('$objectName' => $".$objectName."));\n";
         $controller .= "    }\n\n";
 
@@ -214,11 +221,16 @@ class Generate
         $controller .= "     * @return \$app\n";
         $controller .= "     */\n";
         $controller .= "    public function update($".$colId.", Request \$request, Application \$app) {\n";
-        $controller .= "        \$params = \$request->request->all();\n";
-        $controller .= "        \$app['models.".$objectName."']->update(\$params, $".$colId.");\n";
-        $controller .= "         return \$app->redirect('/".$objectName."');\n";
-        $controller .= "    }\n\n";
+        $controller .= "       \$params = \$request->request->all();\n";
+        $controller .= "        $".$objectName." = new ".ucfirst($objectName)."();\n";
+        foreach ($res as $row) {
+            $controller .= "        \$".$objectName."->".$row[0]." = \$params['$row[0]'];\n";
+        }
 
+        $controller .= "       \$".$objectName."->save();\n";
+        $controller .= "         \$redirect = \$app['url_generator']->generate('".$objectName."_index');\n";
+        $controller .= "         return \$app->redirect(\$redirect);\n";
+        $controller .= "    }\n\n";
         $controller .= "    /**\n";
         $controller .= "     *Function delete\n";
         $controller .= "     *\n";
@@ -227,8 +239,11 @@ class Generate
         $controller .= "     * @return \$app\n";
         $controller .= "     */\n";
         $controller .= "    public function delete($".$colId.", Application \$app) {\n";
-        $controller .= "        \$app['models.".$objectName."']->delete($".$colId.");\n";
-        $controller .= "        return \$app->redirect('/".$objectName."');\n";
+        $controller .= "        \$".$objectName."     = new ".ucfirst($objectName)."();\n";
+        $controller .= "        \$".$objectName."->id = $".$colId.";\n";
+        $controller .= "        \$".$objectName."->delete();\n";
+        $controller .= "         \$redirect = \$app['url_generator']->generate('".$objectName."_index');\n";
+        $controller .= "         return \$app->redirect(\$redirect);\n";
         $controller .= "    }\n";
         $controller .= "}\n";
 
@@ -333,16 +348,26 @@ class Generate
             $class .= "    public $".$row[0].";\n";
         }
 
+        $class .= "    protected static \$db; \n";
+
         $class .= "\n";
         $class .= "    /**\n";
         $class .= "    *Function __construct\n";
         $class .= "    *\n";
-        $class .= "    * @param Connection \$db 'db\n";
         $class .= "    * @return void\n";
         $class .= "    */\n";
-        $class .= "    public function __construct(Connection \$db) {\n";
-        $class .= "        \$this->db = \$db;\n";
+        $class .= "    public function __construct() {\n";
+        $class .= "        global \$app;\n";
+        $class .= "        self::\$db = \$this->db();\n";
         $class .= "    }\n\n";
+
+        $class .= "    public static function db() {\n";
+        $class .= "        global \$app;\n\n";
+        $class .= "        if(self::\$db === null) {\n";
+        $class .= "            self::\$db = \$app['db'];\n";
+        $class .= "        }\n\n";
+        $class .= "        return self::\$db;\n";
+        $class .= "    }\n";
 
         $class .= "    /**\n";
         $class .= "    *Function getById\n";
@@ -352,7 +377,7 @@ class Generate
         $class .= "    */\n";
         $class .= "    public function getById(\$".$res[0][0].") {\n";
         $class .= "        \$sql = 'SELECT * FROM $table WHERE ".$res[0][0]." =?';\n";
-        $class .= "        \$row = \$this->db->fetchAssoc(\$sql,(array( \$".$res[0][0].")));\n";
+        $class .= "        \$row = self::\$db->fetchAssoc(\$sql,(array( \$".$res[0][0].")));\n";
         $class .= "        if(\$row){\n";
         $class .= "            return \$this->buildDomainObject(\$row);\n";
         $class .= "        }\n";
@@ -362,26 +387,28 @@ class Generate
         $class .= "    }\n\n";
 
         $class .= "    /**\n";
-        $class .= "    *Function insert\n";
+        $class .= "    *Function save\n";
         $class .= "    *\n";
-        $class .= "    * @param integer \$".$objectName." '\n";
-        $class .= "    * @return void\n";
-        $class .= "    */\n";
-        $class .= "    public function insert($".$objectName.") {\n";
-        $class .= "        \$this->db->insert('".$table."', \$".$objectName.");\n";
-        $class .= "        return \$this->db->lastInsertId();\n";
-        $class .= "    }\n\n";
-
-        $class .= "    /**\n";
-        $class .= "    *Function update\n";
-        $class .= "    *\n";
-        $class .= "    * @param $className $".$objectName." '\n";
-        $class .= "    * @param integer $".$res[0][0]." '\n";
         $class .= "    * @return function buildDomainObject\n";
         $class .= "    */\n";
-        $class .= "    public function update($".$objectName.", $".$res[0][0].") {\n";
-        $class .= "        \$this->db->update('".$table."', $".$objectName.", array('".$res[0][0]."' => \$".$res[0][0]."));\n";
+        $class .= "    public function save() {\n";
+        $class .= "        $".$objectName."Data = array(\n";
+        foreach ($res as $row) {
+            $class .= "           '$row[0]' => \$this->".$row[0].",\n";
+        }
+
+        $class .= "        );\n";
+        $class .= "        if(\$this->id) { // si c'est un update\n";
+        $class .= "            self::\$db->update('".$table."', $".$objectName."Data, array('".$res[0][0]."' => \$this->".$res[0][0]."));\n";
+        $class .= "        } else {\n";
+        $class .= "            self::\$db->insert('".$table."', \$".$objectName."Data);\n";
+        $class .= "            \$id = self::\$db->lastInsertId();\n";
+        $class .= "            \$this->id = \$id; \n";
+        $class .= "            return \$id;";
+        $class .= "        }\n";
         $class .= "    }\n\n";
+
+
 
         $class .= "    /**\n";
         $class .= "    *Function delete\n";
@@ -389,9 +416,9 @@ class Generate
         $class .= "    * @param integer \$".$res[0][0]." 'id de la table\n";
         $class .= "    * @return void\n";
         $class .= "    */\n";
-        $class .= "    public function delete(\$".$res[0][0].") {\n";
-        $class .= "        \$this->db->delete('".$table."', array('".$res[0][0]."' => \$".$res[0][0]."));\n";
-        $class .= "    }\n";
+        $class .= "    public function delete() {\n";
+        $class .= "        self::\$db->delete('".$table."', array('".$res[0][0]."' => \$this->".$res[0][0]."));\n";
+        $class .= "    }\n\n";
 
         $class .= "    /**\n";
         $class .= "    *Function buildDomainObject\n";
@@ -400,13 +427,12 @@ class Generate
         $class .= "    * @return function buildDomainObject\n";
         $class .= "    */\n";
         $class .= "    protected function buildDomainObject(array \$row) {\n";
-        $class .= "        \$".$objectName." = new \\stdClass;\n\n";
 
         foreach ($res as $row) {
-            $class .= "        \$".$objectName."->".$row[0]." = \$row['$row[0]'];\n";
+            $class .= "        \$this->".$row[0]." = \$row['$row[0]'];\n";
         }
 
-        $class .= "        return \$".$objectName.";\n";
+        $class .= "        return \$this;\n";
         $class .= "    }\n";
 
         $class .= "}\n";
@@ -507,15 +533,26 @@ class Generate
         $model .= "class ".$className." extends entities\\".$className."\n{\n\n";
 
         $model .= "    /**\n";
+        $model .= "    *Fonction __construct\n";
+        $model .= "    *\n";
+        $model .= "    * @return this\n";
+        $model .= "    */\n";
+        $model .= "    public function __construct() {\n";
+        $model .= "        parent::__construct();\n";
+        $model .= "        return \$this;\n";
+        $model .= "    }\n\n";
+
+        $model .= "    /**\n";
         $model .= "    *Fonction getAll\n";
         $model .= "    *\n";
         $model .= "    * @return array $className \$".$objectName."\n";
         $model .= "    */\n";
-        $model .= "    public function getAll() {\n";
-        $model .= "        \$result = \$this->db->fetchAll('SELECT * FROM $table');\n";
+        $model .= "    public static function getAll() {\n";
+        $model .= "        \$result = self::db()->fetchAll('SELECT * FROM $table');\n";
         $model .= "        foreach (\$result as \$row) {\n";
         $model .= "            \$".$colId." = \$row['".$colId."'];\n";
-        $model .= "            \$array_".$objectName."[\$".$colId."] = \$this->getById(\$".$colId.");\n";
+        $model .= "            $".$objectName." = new ".ucfirst($objectName)."();\n";
+        $model .= "            \$array_".$objectName."[\$".$colId."] = $".$objectName."->getById(\$".$colId.");\n";
         $model .= "        }\n\n";
         $model .= "        return \$array_".$objectName.";\n";
         $model .= "    }\n";
@@ -589,8 +626,8 @@ class Generate
         $route  = "<?php \n";
         $route .= "\$app->get('/".$objectName."','controllers\\".$className."Controller::index')
         ->bind('".$objectName."_index');\n";
-        $route .= "\$app->get('/".$objectName."/new','controllers\\".$className."Controller::new')
-        ->bind('".$objectName."_new');\n";
+        $route .= "\$app->get('/".$objectName."/add','controllers\\".$className."Controller::add')
+        ->bind('".$objectName."_add');\n";
         $route .= "\$app->get('/".$objectName."/$arg','controllers\\".$className."Controller::show')
         ->bind('".$objectName."_show');\n";
         $route .= "\$app->get('/".$objectName."/edit/$arg','controllers\\".$className."Controller::edit')
@@ -697,7 +734,7 @@ class Generate
         $index .= "            </div>\n";
         $index .= "            <!-- /.box-body -->\n";
         $index .= "        </div>\n";
-        $index .= "        <a href=\"{{path('".$objectName."_new')}}\" class=\"btn btn-primary btn-block margin-bottom\">Nouveau ".$objectName."</a>";
+        $index .= "        <a href=\"{{path('".$objectName."_add')}}\" class=\"btn btn-primary btn-block margin-bottom\">Nouveau ".$objectName."</a>";
         $index .= "    </div>\n";
         $index .= "</div>\n";
         $index .= "{% endblock %}\n";
