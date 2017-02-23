@@ -63,7 +63,7 @@ switch (strtolower($action)) {
 
         $generate->generateOneEntity($table, $namespace);
         $generate->generateOneModel($table, $namespace);
-        $generate->generateOneController($table);
+        $generate->generateOneController($table, $namespace);
         $generate->generateOneRoute($table);
         $generate->generateViews($table);
         break;
