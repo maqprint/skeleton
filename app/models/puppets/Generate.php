@@ -68,12 +68,17 @@ class Generate
      * @return array $res 'tableau contenant les champs de la table
      */
     public function getField($table) {
-        $res = $this->db->query("describe $table");
-        if ($res->num_rows < 1){
-            throw new \Exception("Merci de saisir une table existante dans votre base de donnée", 1);
+        $colsquery = $this->db->query("describe ".$this->database.".`$table`;");
+        if ($colsquery->num_rows > 0) {
+            while($column = $colsquery->fetch_assoc()) {
+                $columns[] = $column;
+            }
+
+            return $columns;
         }
 
-        return $res->fetch_all();
+        throw new \Exception("cannot find ".$this->database.".`$table` into the specified database.", 1);
+        return false;
     }
 
 
@@ -84,15 +89,15 @@ class Generate
      * @return array
      */
     public function getInfos($table) {
-        $className = $table;
-        $className = str_replace('_', ' ', $className);
-        $className = ucwords($className);
-        $className = str_replace(' ', '', $className);
-        $className = ucfirst($className);
+        $class_name = $table;
+        $class_name = str_replace('_', ' ', $class_name);
+        $class_name = ucwords($class_name);
+        $class_name = str_replace(' ', '', $class_name);
+        $class_name = ucfirst($class_name);
 
         return array(
             'objectName' => $table,
-            'className' => $className
+            'className' => $class_name
         );
     }
 
@@ -105,11 +110,11 @@ class Generate
      * @return void
      */
     public function generateOneController($table, $namespace) {
-        $res        = $this->getField($table);
-        $arrayInfo  = $this->getInfos($table);
-        $colId      = $res[0][0];
-        $objectName = $arrayInfo['objectName'];
-        $className  = $arrayInfo['className'];
+        $res         = $this->getField($table);
+        $arrayInfo   = $this->getInfos($table);
+        $colId       = $res[0][0];
+        $object_name = $arrayInfo['objectName'];
+        $class_name  = $arrayInfo['className'];
 
         $controller  = "<?php\n";
         $controller .= "/**\n";
@@ -130,7 +135,7 @@ class Generate
         $controller .= "use Silex\Application;\n";
         $controller .= "use Symfony\Component\HttpFoundation\Request;\n";
         $controller .= "use Symfony\Component\HttpFoundation\Response;\n";
-        $controller .= "use ".$namespace."\\".$className.";\n\n";
+        $controller .= "use ".$namespace."\\".$class_name.";\n\n";
         $controller .= "/**\n";
         $controller .= " *\n";
         $controller .= " * PHP Version 7\n";
@@ -145,7 +150,7 @@ class Generate
         $controller .= " * @since      N.A\n";
         $controller .= " * @deprecated N.A\n";
         $controller .= " */\n";
-        $controller .= "class ".$className."Controller extends HomeController\n{\n";
+        $controller .= "class ".$class_name."Controller extends HomeController\n{\n";
 
         $controller .= "    /**\n";
         $controller .= "     *Function index\n";
@@ -154,8 +159,8 @@ class Generate
         $controller .= "     * @return \$app\n";
         $controller .= "     */\n";
         $controller .= "    public function index(Application \$app) {\n";
-        $controller .= "        \$array_".$objectName." = ".ucfirst($objectName)."::getAll();\n";
-        $controller .= "        return \$app['twig']->render('$objectName/index.html.twig', array('array_".$objectName."' => \$array_".$objectName."));\n";
+        $controller .= "        \$array_".$object_name." = ".ucfirst($object_name)."::getAll();\n";
+        $controller .= "        return \$app['twig']->render('$object_name/index.html.twig', array('array_".$object_name."' => \$array_".$object_name."));\n";
         $controller .= "    }\n\n";
 
         $controller .= "    /**\n";
@@ -166,9 +171,9 @@ class Generate
         $controller .= "     * @return \$app\n";
         $controller .= "     */\n";
         $controller .= "    public function show(\$".$colId.", Application \$app) {\n";
-        $controller .= "         \$".$objectName." = new ".ucfirst($objectName)."(); \n";
-        $controller .= "         \$".$objectName." = \$".$objectName."->getById(\$".$colId.");\n";
-        $controller .= "        return \$app['twig']->render('$objectName/show.html.twig', array('$objectName' => $".$objectName."));\n";
+        $controller .= "         \$".$object_name." = new ".ucfirst($object_name)."(); \n";
+        $controller .= "         \$".$object_name." = \$".$object_name."->getById(\$".$colId.");\n";
+        $controller .= "        return \$app['twig']->render('$object_name/show.html.twig', array('$object_name' => $".$object_name."));\n";
         $controller .= "    }\n\n";
 
         $controller .= "    /**\n";
@@ -178,7 +183,7 @@ class Generate
         $controller .= "     * @return \$app\n";
         $controller .= "     */\n";
         $controller .= "    public function add(Application \$app) {\n";
-        $controller .= "        return \$app['twig']->render('$objectName/new.html.twig');\n";
+        $controller .= "        return \$app['twig']->render('$object_name/new.html.twig');\n";
         $controller .= "    }\n\n";
 
         $controller .= "    /**\n";
@@ -190,12 +195,13 @@ class Generate
         $controller .= "     */\n";
         $controller .= "    public function create(Request \$request, Application \$app) {\n";
         $controller .= "        \$params = \$request->request->all();\n";
-        $controller .= "        $".$objectName." = new ".ucfirst($objectName)."();\n";
+        $controller .= "        $".$object_name." = new ".ucfirst($object_name)."();\n";
         foreach ($res as $row) {
-            $controller .= "        \$".$objectName."->".$row[0]." = \$params['$row[0]'];\n";
+            $controller .= "        \$".$object_name."->".$row[0]." = \$params['$row[0]'];\n";
         }
-        $controller .= "        $".$objectName."->save();\n";
-        $controller .= "         \$redirect = \$app['url_generator']->generate('".$objectName."_index');\n";
+
+        $controller .= "        $".$object_name."->save();\n";
+        $controller .= "         \$redirect = \$app['url_generator']->generate('".$object_name."_index');\n";
         $controller .= "         return \$app->redirect(\$redirect);\n";
         $controller .= "    }\n\n";
 
@@ -207,9 +213,9 @@ class Generate
         $controller .= "     * @return \$app\n";
         $controller .= "     */\n";
         $controller .= "    public function edit($".$colId.", Application \$app) {\n";
-        $controller .= "        \$".$objectName." = new ".ucfirst($objectName)."();\n";
-        $controller .= "        \$".$objectName." = \$".$objectName."->getById(\$".$colId.");\n";
-        $controller .= "        return \$app['twig']->render('$objectName/edit.html.twig', array('$objectName' => $".$objectName."));\n";
+        $controller .= "        \$".$object_name." = new ".ucfirst($object_name)."();\n";
+        $controller .= "        \$".$object_name." = \$".$object_name."->getById(\$".$colId.");\n";
+        $controller .= "        return \$app['twig']->render('$object_name/edit.html.twig', array('$object_name' => $".$object_name."));\n";
         $controller .= "    }\n\n";
 
         $controller .= "    /**\n";
@@ -222,13 +228,13 @@ class Generate
         $controller .= "     */\n";
         $controller .= "    public function update($".$colId.", Request \$request, Application \$app) {\n";
         $controller .= "       \$params = \$request->request->all();\n";
-        $controller .= "        $".$objectName." = new ".ucfirst($objectName)."();\n";
+        $controller .= "        $".$object_name." = new ".ucfirst($object_name)."();\n";
         foreach ($res as $row) {
-            $controller .= "        \$".$objectName."->".$row[0]." = \$params['$row[0]'];\n";
+            $controller .= "        \$".$object_name."->".$row[0]." = \$params['$row[0]'];\n";
         }
 
-        $controller .= "       \$".$objectName."->save();\n";
-        $controller .= "         \$redirect = \$app['url_generator']->generate('".$objectName."_index');\n";
+        $controller .= "       \$".$object_name."->save();\n";
+        $controller .= "         \$redirect = \$app['url_generator']->generate('".$object_name."_index');\n";
         $controller .= "         return \$app->redirect(\$redirect);\n";
         $controller .= "    }\n\n";
         $controller .= "    /**\n";
@@ -239,15 +245,15 @@ class Generate
         $controller .= "     * @return \$app\n";
         $controller .= "     */\n";
         $controller .= "    public function delete($".$colId.", Application \$app) {\n";
-        $controller .= "        \$".$objectName."     = new ".ucfirst($objectName)."();\n";
-        $controller .= "        \$".$objectName."->id = $".$colId.";\n";
-        $controller .= "        \$".$objectName."->delete();\n";
-        $controller .= "         \$redirect = \$app['url_generator']->generate('".$objectName."_index');\n";
+        $controller .= "        \$".$object_name."     = new ".ucfirst($object_name)."();\n";
+        $controller .= "        \$".$object_name."->id = $".$colId.";\n";
+        $controller .= "        \$".$object_name."->delete();\n";
+        $controller .= "         \$redirect = \$app['url_generator']->generate('".$object_name."_index');\n";
         $controller .= "         return \$app->redirect(\$redirect);\n";
         $controller .= "    }\n";
         $controller .= "}\n";
 
-        $filename = "../controllers/".$className."Controller.php";
+        $filename = "../controllers/".$class_name."Controller.php";
         if (file_exists($filename)) {
             echo "*\n";
             echo "* Le fichier $filename existe déjà.\n";
@@ -263,7 +269,7 @@ class Generate
             }
         }
 
-        if($file = fopen('../controllers/'.$className."Controller.php", "w+")) {
+        if($file = fopen('../controllers/'.$class_name."Controller.php", "w+")) {
             if(!fwrite($file, $controller)) {
                 return false;
             };
@@ -273,7 +279,7 @@ class Generate
         }
 
         echo "*\n";
-        echo "* Le fichier controllers\\".$className."Controller.php à été créé avec succès\n";
+        echo "* Le fichier controllers\\".$class_name."Controller.php à été créé avec succès\n";
         echo "*\n";
         echo "*\n";
 
@@ -290,8 +296,19 @@ class Generate
     public function generateAllEntities($namespace) {
         $resutlt = $this->db->query("show tables");
         $res     = $resutlt->fetch_all();
-        foreach ($res as $row) {
-            $this->generateOneEntity($row[0], $namespace);
+
+        echo "* Voulez vous tout regénérer [All] ? (y/n) : ";
+        $input = fgets(STDIN);
+        $input = substr($input, 0, -1);
+        if($input == "y" || $input == "Y") {
+            foreach ($res as $row) {
+                $all = true;
+                $this->generateOneEntity($row[0], $namespace, $all);
+            }
+        } else {
+            foreach ($res as $row) {
+                $this->generateOneEntity($row[0], $namespace);
+            }
         }
     }
 
@@ -299,163 +316,316 @@ class Generate
     /**
      * Function generateOneEntity
      *
-     * @param string $table     'nom de la table dans la base de donnée'
-     * @param string $namespace 'nom de la table dans la base de donnée'
+     * @param string  $table     'nom de la table dans la base de donnée'
+     * @param string  $namespace 'nom du namespace'
+     * @param boolean $all       'boolean de regénération total'
      * @return false
-     */
-    public function generateOneEntity($table, $namespace) {
-        $res       = $this->getField($table);
-        $arrayInfo = $this->getInfos($table);
+     **/
+    public function generateOneEntity($table, $namespace, $all = false) {
+        $flag_date_columns = false;
+        $columns           = $this->getField($table);
+        $array_info        = $this->getInfos($table);
+        $object_name       = $array_info["objectName"];
+        $class_name        = $array_info["className"];
 
-        $objectName = $arrayInfo['objectName'];
-        $className  = $arrayInfo['className'];
+        $columns_count = count($columns);
+        for ($c = 0; $c < $columns_count; $c ++) {
+            if ($columns[$c]["Key"] == "PRI") {
+                $id = $columns[$c]["Field"];
+                break;
+            }
+        }
 
         $class  = "<?php\n";
         $class .= "/**\n";
-        $class .= " *\n";
         $class .= " * PHP Version 7\n";
         $class .= " *\n";
-        $class .= " * @category   N.A\n";
-        $class .= " * @package    N.A\n";
-        $class .= " * @author     Simon Richard <richards@maqprint.fr>\n";
+        $class .= " * @file       $class_name.php\n";
+        $class .= " * @category   Entities\n";
+        $class .= " * @package    ".ucfirst($namespace)."\n";
+        $class .= " *\n";
+        $class .= " * @author     Skeleton MAQPRINT <devs@maqprint.fr>\n";
         $class .= " * @copyright  2016-2017 Maqprint\n";
         $class .= " * @license    http://www.php.net/license/3_01.txt  PHP License 3.01\n";
-        $class .= " * @link       http://pear.php.net/package/PackageName\n";
-        $class .= " * @see        N.A\n";
+        $class .= " * @link       https://www.maqprint.fr\n";
+        $class .= " *\n";
         $class .= " * @since      N.A\n";
         $class .= " * @deprecated N.A\n";
-        $class .= " */\n";
+        $class .= " **/\n";
         $class .= "namespace $namespace\\entities;\n\n";
         $class .= "use Doctrine\DBAL\Connection;\n\n";
 
         $class .= "/**\n";
+        $class .= " * @class      $class_name\n";
+        $class .= " * @brief      $class_name manipulation class.\n";
+        $class .= " * @details    Provides different methods for $class_name manipulation.\n";
         $class .= " *\n";
-        $class .= " * PHP Version 7\n";
+        $class .= " * @category   Entities\n";
+        $class .= " * @package    ".ucfirst($namespace)."\n";
         $class .= " *\n";
-        $class .= " * @category   N.A\n";
-        $class .= " * @package    N.A\n";
-        $class .= " * @author     Simon Richard <richards@maqprint.fr>\n";
+        $class .= " * @author     Skeleton MAQPRINT <devs@maqprint.fr>\n";
         $class .= " * @copyright  2016-2017 Maqprint\n";
         $class .= " * @license    http://www.php.net/license/3_01.txt  PHP License 3.01\n";
-        $class .= " * @link       http://pear.php.net/package/PackageName\n";
+        $class .= " * @link       https://www.maqprint.fr\n";
+        $class .= " *\n";
         $class .= " * @see        N.A\n";
         $class .= " * @since      N.A\n";
         $class .= " * @deprecated N.A\n";
-        $class .= " */\n";
+        $class .= " **/\n";
 
-        $class .= "class ".$className."\n{\n\n";
-        foreach ($res as $row) {
-            $class .= "    public $".$row[0].";\n";
+        $class .= "class ".$class_name."\n{\n\n";
+        for ($c = 0; $c < $columns_count; $c ++) {
+            $class .= "    public $".$columns[$c]["Field"].";\n";
         }
-
-        $class .= "    protected static \$db; \n";
 
         $class .= "\n";
+        $class .= "    protected static \$db;\n";
+        $class .= "    protected static \$database = 'database_name';\n\n";
+
         $class .= "    /**\n";
-        $class .= "    *Function __construct\n";
+        $class .= "    * @function __construct()\n";
+        $class .= "    * @brief    Create a new $class_name object.\n";
+        $class .= "    * @details  Create a new $class_name object.\n";
         $class .= "    *\n";
-        $class .= "    * @return void\n";
-        $class .= "    */\n";
-        $class .= "    public function __construct() {\n";
-        $class .= "        global \$app;\n";
-        $class .= "        self::\$db = \$this->db();\n";
+        $class .= "    * @param $id\n";
+        $class .= "    *\n";
+        $class .= "    * @return <boolean>\n";
+        $class .= "    *\n";
+        $class .= "    * @access public\n";
+        $class .= "    **/\n";
+        $class .= "    public function __construct(\$$id = null) {\n";
+        $class .= "        self::\$db = \$this->db();\n\n";
+
+        for ($c = 0; $c < $columns_count; $c ++) {
+            if ($columns[$c]["Key"] == "PRI") {
+                $class .= "        \$this->".$columns[$c]["Field"]." = \$$id;\n";
+            } elseif (strtolower($columns[$c]["Null"]) == "no") {
+                preg_match_all("/^([a-z]+)\(?([0-9]+)?\)?$/i", strtolower($columns[$c]["Type"]), $result);
+
+                switch($result[1][0]) {
+                    default:
+                    case "char":
+                    case "varchar":
+                    case "tinytext":
+                    case "text":
+                    case "mediumtext":
+                    case "longtext":
+                    case "binary":
+                    case "varbinary":
+                    case "tinyblob":
+                    case "mediumblob":
+                    case "blob":
+                    case "longblobv":
+                    case "enum":
+                    case "geometry":
+                    case "point":
+                    case "linestring":
+                    case "polygon":
+                    case "multipoint":
+                    case "multilinestring":
+                    case "multipolygon":
+                    case "geometrycollection":
+                    case "json":
+                        if ($columns[$c]["Default"] != "") {
+                            $class .= "        \$this->".$columns[$c]["Field"]." = '".$columns[$c]["Default"]."';\n";
+                        } else {
+                            $class .= "        \$this->".$columns[$c]["Field"]." = null;\n";
+                        }
+                        break;
+
+                    case "tinyint":
+                    case "smallint":
+                    case "mediumint":
+                    case "int":
+                    case "bigint":
+                    case "decimal":
+                    case "float":
+                    case "double":
+                    case "real":
+                    case "bit":
+                        if ($columns[$c]["Default"] != "") {
+                            $class .= "        \$this->".$columns[$c]["Field"]." = ".$columns[$c]["Default"].";\n";
+                        } else {
+                            $class .= "        \$this->".$columns[$c]["Field"]." = null;\n";
+                        }
+                        break;
+
+                    case "boolean":
+                        if ($columns[$c]["Default"] != "") {
+                            $class .= "        \$this->".$columns[$c]["Field"]." = ".$columns[$c]["Default"].";\n";
+                        } else {
+                            $class .= "        \$this->".$columns[$c]["Field"]." = null;\n";
+                        }
+                        break;
+
+                    case "year":
+                        if ($columns[$c]["Default"] != "") {
+                            $class .= "        \$this->".$columns[$c]["Field"]." = '".$columns[$c]["Default"]."';\n";
+                        } else {
+                            $class .= "        \$this->".$columns[$c]["Field"]." = null;\n";
+                        }
+                        break;
+
+                    case "date":
+                        if ($columns[$c]["Default"] != "") {
+                            $class .= "        \$this->".$columns[$c]["Field"]." = '".$columns[$c]["Default"]."';\n";
+                        } else {
+                            $class .= "        \$this->".$columns[$c]["Field"]." = null;\n";
+                        }
+                        break;
+
+                    case "time":
+                        if ($columns[$c]["Default"] != "") {
+                            $class .= "        \$this->".$columns[$c]["Field"]." = '".$columns[$c]["Default"]."';\n";
+                        } else {
+                            $class .= "        \$this->".$columns[$c]["Field"]." = null;\n";
+                        }
+                        break;
+
+                    case "datetime":
+                        if ($columns[$c]["Default"] != "") {
+                            $class .= "        \$this->".$columns[$c]["Field"]." = '".$columns[$c]["Default"]."';\n";
+                        } else {
+                            $class .= "        \$this->".$columns[$c]["Field"]." = null;\n";
+                        }
+                        break;
+
+                    case "timestamp":
+                        if ($columns[$c]["Default"] != "") {
+                            $class .= "        \$this->".$columns[$c]["Field"]." = '".$columns[$c]["Default"]."';\n";
+                        } else {
+                            $class .= "        \$this->".$columns[$c]["Field"]." = null;\n";
+                        }
+                        break;
+                }
+            } else {
+                $class .= "        \$this->".$columns[$c]["Field"]." = null;\n";
+            }
+        }
+
+        $class .= "\n";
+        $class .= "        if(\$this->$id !== null) {\n";
+        $class .= "            \$row = self::\$db->fetchAssoc(\"SELECT * FROM ".$this->database.".`$table` WHERE id=:id\", array(\"$id\" => \$this->$id));\n";
+        $class .= "            if (count(\$row) > 0) {\n";
+        for ($c = 0; $c < $columns_count; $c ++) {
+            $class .= "                \$this->".$columns[$c]["Field"]." = \$row[\"".$columns[$c]["Field"]."\"];\n";
+        }
+
+        $class .= "            } else {\n";
+        $class .= "                throw new \Exception(\"`$table` loading failed : there no ".$this->database.".`$table` of id : \$this->$id.\");\n";
+        $class .= "            }\n";
+        $class .= "        }\n";
+        $class .= "        return \$this;\n";
         $class .= "    }\n\n";
 
-        $class .= "    public static function db() {\n";
+        $class .= "    /**\n";
+        $class .= "    * @function db()\n";
+        $class .= "    * @brief    Get the Silex® \$app['db'] object.\n";
+        $class .= "    * @details  Get the Silex® \$app['db'] object.\n";
+        $class .= "    *\n";
+        $class .= "    * @return <boolean>\n";
+        $class .= "    *\n";
+        $class .= "    * @static\n";
+        $class .= "    **/\n";
+        $class .= "    protected static function db() {\n";
         $class .= "        global \$app;\n\n";
         $class .= "        if(self::\$db === null) {\n";
-        $class .= "            self::\$db = \$app['db'];\n";
+        $class .= "            self::\$db = \$app[\"db\"];\n";
         $class .= "        }\n\n";
         $class .= "        return self::\$db;\n";
-        $class .= "    }\n";
-
-        $class .= "    /**\n";
-        $class .= "    *Function getById\n";
-        $class .= "    *\n";
-        $class .= "    * @param integer \$".$res[0][0]." 'id de la table\n";
-        $class .= "    * @return function buildDomainObject\n";
-        $class .= "    */\n";
-        $class .= "    public function getById(\$".$res[0][0].") {\n";
-        $class .= "        \$sql = 'SELECT * FROM $table WHERE ".$res[0][0]." =?';\n";
-        $class .= "        \$row = self::\$db->fetchAssoc(\$sql,(array( \$".$res[0][0].")));\n";
-        $class .= "        if(\$row){\n";
-        $class .= "            return \$this->buildDomainObject(\$row);\n";
-        $class .= "        }\n";
-        $class .= "        else {\n";
-        $class .= "            throw new \Exception('No data matching id ' .  \$".$res[0][0].");\n";
-        $class .= "        }\n";
         $class .= "    }\n\n";
 
+        $class .= "/**\n";
+        $class .= "* @function database()\n";
+        $class .= "* @brief    Get the name of database used.\n";
+        $class .= "* @details   Get the name of database used.\n";
+        $class .= "*\n";
+        $class .= "* @return <boolean>\n";
+        $class .= "*\n";
+        $class .= "* @static\n";
+        $class .= "**/\n";
+        $class .= "protected static function database() {\n";
+        $class .= "    return self::\$database;\n";
+        $class .= "}\n\n";
+
         $class .= "    /**\n";
-        $class .= "    *Function save\n";
+        $class .= "    * @function save()\n";
+        $class .= "    * @brief    save an $table object.\n";
+        $class .= "    * @details  save an $table object.\n";
         $class .= "    *\n";
-        $class .= "    * @return function buildDomainObject\n";
-        $class .= "    */\n";
+        $class .= "    * @return <boolean>\n";
+        $class .= "    *\n";
+        $class .= "    * @access public\n";
+        $class .= "    **/\n";
         $class .= "    public function save() {\n";
-        $class .= "        $".$objectName."Data = array(\n";
-        foreach ($res as $row) {
-            $class .= "           '$row[0]' => \$this->".$row[0].",\n";
+        $class .= "        $".$object_name."_data = array(\n";
+        for ($c = 0; $c < $columns_count; $c ++) {
+            switch(strtolower($columns[$c]["Field"])) {
+                default:
+                    $class .= "           \"".$columns[$c]["Field"]."\" => \$this->".$columns[$c]["Field"].",\n";
+                    break;
+
+                case "date_add":
+                case "date_edit":
+                    $flag_date_columns = true;
+                    $class .= "           \"".$columns[$c]["Field"]."\" => date(\"Y-m-d H:i:s\"),\n";
+                    break;
+            }
         }
 
-        $class .= "        );\n";
+        $class .= "        );\n\n";
+
         $class .= "        if(\$this->id) { // si c'est un update\n";
-        $class .= "            self::\$db->update('".$table."', $".$objectName."Data, array('".$res[0][0]."' => \$this->".$res[0][0]."));\n";
+        if ($flag_date_columns === true) {
+            $class .= "            unset($".$object_name."_data[\"date_add\"]);\n\n";
+        }
+        $class .= "            self::\$db->update(\"".$this->database.".`$table`\", \$".$object_name."_data, array(\"$id\" => \$this->id));\n";
         $class .= "        } else {\n";
-        $class .= "            self::\$db->insert('".$table."', \$".$objectName."Data);\n";
-        $class .= "            \$id = self::\$db->lastInsertId();\n";
-        $class .= "            \$this->id = \$id; \n";
-        $class .= "            return \$id;";
+        $class .= "            self::\$db->insert(\"".$this->database.".`$table`\", \$".$object_name."_data);\n";
+        $class .= "            \$this->id = self::\$db->lastInsertId();\n\n";
+        $class .= "            return \$this->id;\n";
         $class .= "        }\n";
         $class .= "    }\n\n";
 
-
-
         $class .= "    /**\n";
-        $class .= "    *Function delete\n";
+        $class .= "    * @function delete()\n";
+        $class .= "    * @brief    delete an $table object.\n";
+        $class .= "    * @details  delete an $table object.\n";
         $class .= "    *\n";
-        $class .= "    * @param integer \$".$res[0][0]." 'id de la table\n";
-        $class .= "    * @return void\n";
-        $class .= "    */\n";
-        $class .= "    public function delete() {\n";
-        $class .= "        self::\$db->delete('".$table."', array('".$res[0][0]."' => \$this->".$res[0][0]."));\n";
-        $class .= "    }\n\n";
-
-        $class .= "    /**\n";
-        $class .= "    *Function buildDomainObject\n";
+        $class .= "    * @param integer $id the id of $table object to delete\n";
         $class .= "    *\n";
-        $class .= "    * @param array \$row 'id de la table\n";
-        $class .= "    * @return function buildDomainObject\n";
-        $class .= "    */\n";
-        $class .= "    protected function buildDomainObject(array \$row) {\n";
-
-        foreach ($res as $row) {
-            $class .= "        \$this->".$row[0]." = \$row['$row[0]'];\n";
-        }
-
-        $class .= "        return \$this;\n";
+        $class .= "    * @return <boolean>\n";
+        $class .= "    *\n";
+        $class .= "    * @static\n";
+        $class .= "    **/\n";
+        $class .= "    public static function delete(\$id = null) {\n";
+        $class .= "        self::\$db->delete(\"".$this->database.".`$table`\", array(\"$id\" => \$id));\n";
+        $class .= "\n";
+        $class .= "        return true;\n";
         $class .= "    }\n";
-
         $class .= "}\n";
 
-        $filename = "../models/".$namespace."/entities/".$className.".php";
-        if (file_exists($filename)) {
-            echo "*\n";
-            echo "* /!\ Le fichier $filename existe déjà.\n";
-            echo "*\n";
-            echo "* Voulez vous le regénérer ?(y/n) : ";
-            $input = fgets(STDIN);
-            $input = substr($input, 0, -1);
-            if($input == "n" || $input == "N"){
-                echo "* Le fichier n'a pas été regénéré ! \n";
+        if ($all == false) {
+            $filename = "../models/".$namespace."/entities/".$class_name.".php";
+            if (file_exists($filename)) {
                 echo "*\n";
-                echo "*****************************************************\n";
-                return false;
+                echo "* /!\ Le fichier $filename existe déjà.\n";
+                echo "*\n";
+                echo "* Voulez vous le regénérer ?(y/n) : ";
+                $input = fgets(STDIN);
+                $input = substr($input, 0, -1);
+                if($input == "n" || $input == "N"){
+                    echo "* Le fichier n'a pas été regénéré ! \n";
+                    echo "*\n";
+                    echo "*****************************************************\n";
+                    return false;
+                }
+            } else {
+                    echo "* Le fichier a été regénéré ! \n";
             }
-        } else {
-                echo "* Le fichier a été regénéré ! \n";
         }
 
-        if($file = fopen(__DIR__."/../".$namespace."/entities/".$className.".php", "w+")) {
+        if($file = fopen(__DIR__."/../".$namespace."/entities/".$class_name.".php", "w+")) {
             if(!fwrite($file, $class)) {
                 return false;
             };
@@ -465,7 +635,7 @@ class Generate
         }
 
         echo "*\n";
-        echo "* Le fichier models\\entities\\$className.php a été créé avec succès  \n";
+        echo "* Le fichier models\\entities\\$class_name.php a été créé avec succès  \n";
         echo "*\n";
         echo "*\n";
     }
@@ -483,8 +653,8 @@ class Generate
         $arrayInfo = $this->getInfos($table);
 
         $colId      = $res[0][0];
-        $objectName = $arrayInfo['objectName'];
-        $className  = $arrayInfo['className'];
+        $object_name = $arrayInfo['objectName'];
+        $class_name  = $arrayInfo['className'];
 
         $model  = "<?php\n";
         $model .= "/**\n";
@@ -518,7 +688,7 @@ class Generate
         $model .= " * @since      N.A\n";
         $model .= " * @deprecated N.A\n";
         $model .= " */\n";
-        $model .= "class ".$className." extends entities\\".$className."\n{\n\n";
+        $model .= "class ".$class_name." extends entities\\".$class_name."\n{\n\n";
 
         $model .= "    /**\n";
         $model .= "    *Fonction __construct\n";
@@ -533,20 +703,20 @@ class Generate
         $model .= "    /**\n";
         $model .= "    *Fonction getAll\n";
         $model .= "    *\n";
-        $model .= "    * @return array $className \$".$objectName."\n";
+        $model .= "    * @return array $class_name \$".$object_name."\n";
         $model .= "    */\n";
         $model .= "    public static function getAll() {\n";
         $model .= "        \$result = self::db()->fetchAll('SELECT * FROM $table');\n";
         $model .= "        foreach (\$result as \$row) {\n";
         $model .= "            \$".$colId." = \$row['".$colId."'];\n";
-        $model .= "            $".$objectName." = new ".ucfirst($objectName)."();\n";
-        $model .= "            \$array_".$objectName."[\$".$colId."] = $".$objectName."->getById(\$".$colId.");\n";
+        $model .= "            $".$object_name." = new ".ucfirst($object_name)."();\n";
+        $model .= "            \$array_".$object_name."[\$".$colId."] = $".$object_name."->getById(\$".$colId.");\n";
         $model .= "        }\n\n";
-        $model .= "        return \$array_".$objectName.";\n";
+        $model .= "        return \$array_".$object_name.";\n";
         $model .= "    }\n";
         $model .= "}\n";
 
-        $filename = "../models/".$namespace."/".$className.".php";
+        $filename = "../models/".$namespace."/".$class_name.".php";
         if (file_exists($filename)) {
             echo "*\n";
             echo "* /!\ Le fichier $filename existe déjà.\n";
@@ -562,7 +732,7 @@ class Generate
             }
         }
 
-        if($file = fopen("../models/".$namespace."/".$className.".php", "w+")) {
+        if($file = fopen("../models/".$namespace."/".$class_name.".php", "w+")) {
             if(!fwrite($file, $model)) {
                 return false;
             };
@@ -573,29 +743,34 @@ class Generate
 
 
         echo "*\n";
-        echo "* Le fichier models\\$className.php a été créé avec succès  \n";
+        echo "* Le fichier models\\$class_name.php a été créé avec succès  \n";
         echo "*\n";
         echo "*\n";
     }
 
 
-     /**
-      *Function generateProject
-      *
-      * @return void
-      */
-     public function generateOneProject($namespace, $host, $user, $password, $database) {
-         $resutlt = $this->db->query("show tables");
-         $res     = $resutlt->fetch_all();
-         foreach ($res as $row) {
-             $this->generateOneEntity($row[0], $namespace);
-             $this->generateOneModel($row[0], $namespace);
-             $this->generateOneController($row[0]);
-             $this->generateOneRoute($row[0]);
-             $this->generateViews($row[0]);
-         }
-
-     }
+    /**
+     *Function generateProject
+     *
+     *@param string $namespace 'nom du namespace'
+     *@param string $host      'nom du serveur de la base de donnée'
+     *@param string $user      'nom de l'utilisateur'
+     *@param string $password  'mot de passe de connexion à la base de donnée'
+     *@param string $database  'nom de la base de donnée'
+     *
+     * @return void
+     */
+    public function generateOneProject($namespace, $host, $user, $password, $database) {
+        $resutlt = $this->db->query("show tables");
+        $res     = $resutlt->fetch_all();
+        foreach ($res as $row) {
+            $this->generateOneEntity($row[0], $namespace);
+            $this->generateOneModel($row[0], $namespace);
+            $this->generateOneController($row[0], $namespace);
+            $this->generateOneRoute($row[0]);
+            $this->generateViews($row[0]);
+        }
+    }
 
     /**
      * Function generateOneRoute
@@ -604,30 +779,30 @@ class Generate
      * @return false
      */
     public function generateOneRoute($table) {
-        $res        = $this->getField($table);
-        $colId      = $res[0][0];
-        $arrayInfo  = $this->getInfos($table);
-        $objectName = $arrayInfo['objectName'];
-        $className  = $arrayInfo['className'];
+        $res         = $this->getField($table);
+        $colId       = $res[0][0];
+        $arrayInfo   = $this->getInfos($table);
+        $object_name = $arrayInfo['objectName'];
+        $class_name  = $arrayInfo['className'];
 
         $arg    = "{".$colId."}";
         $route  = "<?php \n";
-        $route .= "\$app->get('/".$objectName."','controllers\\".$className."Controller::index')
-        ->bind('".$objectName."_index');\n";
-        $route .= "\$app->get('/".$objectName."/add','controllers\\".$className."Controller::add')
-        ->bind('".$objectName."_add');\n";
-        $route .= "\$app->get('/".$objectName."/$arg','controllers\\".$className."Controller::show')
-        ->bind('".$objectName."_show');\n";
-        $route .= "\$app->get('/".$objectName."/edit/$arg','controllers\\".$className."Controller::edit')
-        ->bind('".$objectName."_edit');\n";
-        $route .= "\$app->post('/".$objectName."/update/$arg','controllers\\".$className."Controller::update')
-        ->bind('".$objectName."_update');\n";
-        $route .= "\$app->post('/".$objectName."/create','controllers\\".$className."Controller::create')
-        ->bind('".$objectName."_create');\n";
-        $route .= "\$app->post('/".$objectName."/delete/$arg','controllers\\".$className."Controller::delete')
-        ->bind('".$objectName."_delete');\n";
+        $route .= "\$app->get('/".$object_name."','controllers\\".$class_name."Controller::index')
+        ->bind('".$object_name."_index');\n";
+        $route .= "\$app->get('/".$object_name."/add','controllers\\".$class_name."Controller::add')
+        ->bind('".$object_name."_add');\n";
+        $route .= "\$app->get('/".$object_name."/$arg','controllers\\".$class_name."Controller::show')
+        ->bind('".$object_name."_show');\n";
+        $route .= "\$app->get('/".$object_name."/edit/$arg','controllers\\".$class_name."Controller::edit')
+        ->bind('".$object_name."_edit');\n";
+        $route .= "\$app->post('/".$object_name."/update/$arg','controllers\\".$class_name."Controller::update')
+        ->bind('".$object_name."_update');\n";
+        $route .= "\$app->post('/".$object_name."/create','controllers\\".$class_name."Controller::create')
+        ->bind('".$object_name."_create');\n";
+        $route .= "\$app->post('/".$object_name."/delete/$arg','controllers\\".$class_name."Controller::delete')
+        ->bind('".$object_name."_delete');\n";
 
-        $filename = "../routes/".$objectName.".php";
+        $filename = "../routes/".$object_name.".php";
         if (file_exists($filename)) {
             echo "*\n";
             echo "* Le fichier $filename existe déjà.\n";
@@ -643,7 +818,7 @@ class Generate
             }
         }
 
-        if($file = fopen('../routes/'.$objectName.'.php', "w+")) {
+        if($file = fopen('../routes/'.$object_name.'.php', "w+")) {
             if(!fwrite($file, $route)) {
                 return false;
             };
@@ -653,7 +828,7 @@ class Generate
         }
 
         if($file = fopen('../routes/routes.php', "a")) {
-            if(!fwrite($file, "include __DIR__.'/".$objectName.".php'; \n")) {
+            if(!fwrite($file, "include __DIR__.'/".$object_name.".php'; \n")) {
                 return false;
             };
             if(!fclose($file)) {
@@ -662,7 +837,7 @@ class Generate
         }
 
         echo "*\n";
-        echo "* Les fichiers routes\\".$objectName.".php a été créé avec succès\n";
+        echo "* Les fichiers routes\\".$object_name.".php a été créé avec succès\n";
         echo "*\n";
         echo "*\n";
     }
@@ -670,18 +845,18 @@ class Generate
     /**
      * Function generateViews
      *
-     * @param string $table '
+     * @param string $table 'nom de la table dans la base de donnée'
      * @return void
      */
     public function generateViews($table) {
-        $res        = $this->getField($table);
-        $colId      = $res[0][0];
-        $arrayInfo  = $this->getInfos($table);
-        $objectName = $arrayInfo['objectName'];
-        $className  = $arrayInfo['className'];
+        $res         = $this->getField($table);
+        $colId       = $res[0][0];
+        $arrayInfo   = $this->getInfos($table);
+        $object_name = $arrayInfo['objectName'];
+        $class_name  = $arrayInfo['className'];
 
-        if (is_dir("../views/".$objectName."") == false) {
-            mkdir("../views/".$objectName."", 0775);
+        if (is_dir("../views/".$object_name."") == false) {
+            mkdir("../views/".$object_name."", 0775);
         }
 
         $index  = "";
@@ -706,12 +881,12 @@ class Generate
         }
 
         $index .= "                        </tr>\n";
-        $index .= "                        {% for $objectName in array_".$objectName." %}\n";
+        $index .= "                        {% for $object_name in array_".$object_name." %}\n";
         $index .= "                            <tr>\n";
         foreach ($res as $row) {
             $index .= "                               <td>\n";
-            $index .= "                                   <a href=\"{{ path('".$objectName."_show',
-                {'".$colId."' : $objectName.$colId})}}\">{{ $objectName.$row[0] }}</a>\n";
+            $index .= "                                   <a href=\"{{ path('".$object_name."_show',
+                {'".$colId."' : $object_name.$colId})}}\">{{ $object_name.$row[0] }}</a>\n";
             $index .= "                               </td>\n";
         }
 
@@ -722,12 +897,12 @@ class Generate
         $index .= "            </div>\n";
         $index .= "            <!-- /.box-body -->\n";
         $index .= "        </div>\n";
-        $index .= "        <a href=\"{{path('".$objectName."_add')}}\" class=\"btn btn-primary btn-block margin-bottom\">Nouveau ".$objectName."</a>";
+        $index .= "        <a href=\"{{path('".$object_name."_add')}}\" class=\"btn btn-primary btn-block margin-bottom\">Nouveau ".$object_name."</a>";
         $index .= "    </div>\n";
         $index .= "</div>\n";
         $index .= "{% endblock %}\n";
 
-        if($file = fopen('../views/'.$objectName."/index.html.twig", "w+")) {
+        if($file = fopen('../views/'.$object_name."/index.html.twig", "w+")) {
             if(!fwrite($file, $index)) {
                 return false;
             };
@@ -759,7 +934,7 @@ class Generate
         $show .= "                            <tr>\n";
         foreach ($res as $row) {
             $show .= "                               <td>\n";
-            $show .= "                                   {{ $objectName.$row[0] }}\n";
+            $show .= "                                   {{ $object_name.$row[0] }}\n";
             $show .= "                               </td>\n";
         }
 
@@ -769,19 +944,19 @@ class Generate
         $show .= "            </div>\n";
         $show .= "            <!-- /.box-body -->\n";
         $show .= "        </div>\n";
-        $show .= "        <a href=\"{{path('".$objectName."_edit',
-            {'".$res[0][0]."' : ".$objectName.".".$res[0][0]." })}}\"
-            class=\"btn btn-primary btn-block margin-bottom\">Editer $objectName</a>";
-        $show .= "        <form method=\"post\" action=\"{{path('".$objectName."_delete',
-            {'".$res[0][0]."' : ".$objectName.".".$res[0][0]." })}}\">\n";
+        $show .= "        <a href=\"{{path('".$object_name."_edit',
+            {'".$res[0][0]."' : ".$object_name.".".$res[0][0]." })}}\"
+            class=\"btn btn-primary btn-block margin-bottom\">Editer $object_name</a>";
+        $show .= "        <form method=\"post\" action=\"{{path('".$object_name."_delete',
+            {'".$res[0][0]."' : ".$object_name.".".$res[0][0]." })}}\">\n";
         $show .= "                    <button type=\"submit\"
-        class=\"btn btn-danger btn-block btn-flat\">Supprimer $objectName </button>";
+        class=\"btn btn-danger btn-block btn-flat\">Supprimer $object_name </button>";
         $show .= "        </form>";
         $show .= "    </div>\n";
         $show .= "</div>\n";
         $show .= "{% endblock %}\n";
 
-        if($file = fopen('../views/'.$objectName."/show.html.twig", "w+")) {
+        if($file = fopen('../views/'.$object_name."/show.html.twig", "w+")) {
             if(!fwrite($file, $show)) {
                 return false;
             };
@@ -796,7 +971,7 @@ class Generate
         $new .= "{% block content %}\n";
         $new .= "<div class=\"row\">\n";
         $new .= "    <div class=\"col-xs-12\">\n";
-        $new .= "        <form method=\"post\" action=\"{{path('".$objectName."_create')}}\">\n";
+        $new .= "        <form method=\"post\" action=\"{{path('".$object_name."_create')}}\">\n";
 
         foreach ($res as $row) {
             $new .= "            <div class=\"form-group has-feedback\">\n";
@@ -814,7 +989,7 @@ class Generate
         $new .= "</div>\n";
         $new .= "{% endblock %}\n";
 
-        if($file = fopen('../views/'.$objectName."/new.html.twig", "w+")) {
+        if($file = fopen('../views/'.$object_name."/new.html.twig", "w+")) {
             if(!fwrite($file, $new)) {
                 return false;
             };
@@ -829,11 +1004,11 @@ class Generate
         $edit .= "{% block content %}\n";
         $edit .= "<div class=\"row\">\n";
         $edit .= "    <div class=\"col-xs-12\">\n";
-        $edit .= "        <form method=\"post\" action=\"{{path('".$objectName."_update', {'".$res[0][0]."' : ".$objectName.".".$res[0][0]." })}}\">\n";
+        $edit .= "        <form method=\"post\" action=\"{{path('".$object_name."_update', {'".$res[0][0]."' : ".$object_name.".".$res[0][0]." })}}\">\n";
 
         foreach ($res as $row) {
             $edit .= "            <div class=\"form-group has-feedback\">\n";
-            $edit .= "                <input value=\"{{".$objectName.".".$row[0]." }}\" type=\"text\" name=\"$row[0]\" class=\"form-control\" placeholder=\"$row[0]\">\n";
+            $edit .= "                <input value=\"{{".$object_name.".".$row[0]." }}\" type=\"text\" name=\"$row[0]\" class=\"form-control\" placeholder=\"$row[0]\">\n";
             $edit .= "            </div>\n";
         }
 
@@ -847,7 +1022,7 @@ class Generate
         $edit .= "</div>\n";
         $edit .= "{% endblock %}\n";
 
-        if($file = fopen('../views/'.$objectName."/edit.html.twig", "w+")) {
+        if($file = fopen('../views/'.$object_name."/edit.html.twig", "w+")) {
             if(!fwrite($file, $edit)) {
                 return false;
             };
@@ -857,7 +1032,7 @@ class Generate
         }
 
         echo "*\n";
-        echo "* Les fichiers views\\".$objectName."\***.html.twig ont été créé avec succès\n";
+        echo "* Les fichiers views\\".$object_name."\***.html.twig ont été créé avec succès\n";
         echo "*\n";
         echo "*\n";
     }
