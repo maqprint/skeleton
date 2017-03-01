@@ -171,8 +171,7 @@ class Generate
         $controller .= "     * @return \$app\n";
         $controller .= "     */\n";
         $controller .= "    public function show(\$".$colId.", Application \$app) {\n";
-        $controller .= "         \$".$object_name." = new ".ucfirst($object_name)."(); \n";
-        $controller .= "         \$".$object_name." = \$".$object_name."(\$".$colId.");\n";
+        $controller .= "         \$".$object_name." = new ".ucfirst($object_name)."(\$".$colId."); \n";
         $controller .= "        return \$app['twig']->render('$object_name/show.html.twig', array('$object_name' => $".$object_name."));\n";
         $controller .= "    }\n\n";
 
@@ -216,8 +215,7 @@ class Generate
         $controller .= "     * @return \$app\n";
         $controller .= "     */\n";
         $controller .= "    public function edit($".$colId.", Application \$app) {\n";
-        $controller .= "        \$".$object_name." = new ".ucfirst($object_name)."();\n";
-        $controller .= "        \$".$object_name." = \$".$object_name."(\$".$colId.");\n";
+        $controller .= "         \$".$object_name." = new ".ucfirst($object_name)."(\$".$colId."); \n";
         $controller .= "        return \$app['twig']->render('$object_name/edit.html.twig', array('$object_name' => $".$object_name."));\n";
         $controller .= "    }\n\n";
 
@@ -698,8 +696,8 @@ class Generate
         $model .= "    *\n";
         $model .= "    * @return this\n";
         $model .= "    */\n";
-        $model .= "    public function __construct(\$id) {\n";
-        $model .= "        parent::__construct(\$id);\n\n";
+        $model .= "    public function __construct(\$$colId = null) {\n";
+        $model .= "        parent::__construct(\$$colId);\n\n";
         $model .= "        return \$this;\n";
         $model .= "    }\n\n";
 
@@ -709,7 +707,7 @@ class Generate
         $model .= "    * @return array $class_name \$".$object_name."\n";
         $model .= "    */\n";
         $model .= "    public static function getAll() {\n";
-        $model .= "        \$result = self::db()->fetchAll('SELECT * FROM $table');\n";
+        $model .= "        \$result = self::db()->fetchAll('SELECT * FROM '.self::\$database.'.`$table`');\n";
         $model .= "        foreach (\$result as \$row) {\n";
         $model .= "            \$".$colId." = \$row['".$colId."'];\n";
         $model .= "            $".$object_name." = new ".ucfirst($object_name)."(\$$colId);\n";
@@ -880,16 +878,20 @@ class Generate
         $index .= "                    <tbody>\n";
         $index .= "                        <tr>\n";
         foreach ($res as $row) {
-            $index .= "                               <th>".$row[0]."</th>\n";
+            $champs = $row["Field"];
+
+            $index .= "                               <th>".$champs."</th>\n";
         }
 
         $index .= "                        </tr>\n";
         $index .= "                        {% for $object_name in array_".$object_name." %}\n";
         $index .= "                            <tr>\n";
         foreach ($res as $row) {
+            $champs = $row["Field"];
+
             $index .= "                               <td>\n";
             $index .= "                                   <a href=\"{{ path('".$object_name."_show',
-                {'".$colId."' : $object_name.$colId})}}\">{{ $object_name.$row[0] }}</a>\n";
+                {'".$colId."' : $object_name.$colId})}}\">{{ $object_name.$champs}}</a>\n";
             $index .= "                               </td>\n";
         }
 
@@ -930,14 +932,18 @@ class Generate
         $show .= "                    <tbody>\n";
         $show .= "                        <tr>\n";
         foreach ($res as $row) {
-            $show .= "                               <th>".$row[0]."</th>\n";
+            $champs = $row["Field"];
+
+            $show .= "                               <th>".$champs."</th>\n";
         }
 
         $show .= "                        </tr>\n";
         $show .= "                            <tr>\n";
         foreach ($res as $row) {
+            $champs = $row["Field"];
+
             $show .= "                               <td>\n";
-            $show .= "                                   {{ $object_name.$row[0] }}\n";
+            $show .= "                                   {{ $object_name.$champs }}\n";
             $show .= "                               </td>\n";
         }
 
@@ -977,8 +983,10 @@ class Generate
         $new .= "        <form method=\"post\" action=\"{{path('".$object_name."_create')}}\">\n";
 
         foreach ($res as $row) {
+            $champs = $row["Field"];
+
             $new .= "            <div class=\"form-group has-feedback\">\n";
-            $new .= "                <input type=\"text\" name=\"$row[0]\" class=\"form-control\" placeholder=\"$row[0]\">\n";
+            $new .= "                <input type=\"text\" name=\"$champs\" class=\"form-control\" placeholder=\"$champs\">\n";
             $new .= "            </div>\n";
         }
 
@@ -1011,7 +1019,8 @@ class Generate
 
         foreach ($res as $row) {
             $edit .= "            <div class=\"form-group has-feedback\">\n";
-            $edit .= "                <input value=\"{{".$object_name.".".$row[0]." }}\" type=\"text\" name=\"$row[0]\" class=\"form-control\" placeholder=\"$row[0]\">\n";
+            $champs = $row["Field"];
+            $edit .= "                <input value=\"{{".$object_name.".".$champs." }}\" type=\"text\" name=\"$champs\" class=\"form-control\" placeholder=\"$champs\">\n";
             $edit .= "            </div>\n";
         }
 
