@@ -196,8 +196,11 @@ class Generate
         $controller .= "    public function create(Request \$request, Application \$app) {\n";
         $controller .= "        \$params = \$request->request->all();\n";
         $controller .= "        $".$object_name." = new ".ucfirst($object_name)."();\n";
+
         foreach ($res as $row) {
-            $controller .= "        \$".$object_name."->".$row[0]." = \$params['$row[0]'];\n";
+            $champs = $row['Field'];
+
+            $controller .= "        \$".$object_name."->".$champs." = \$params['$champs'];\n";
         }
 
         $controller .= "        $".$object_name."->save();\n";
@@ -230,7 +233,8 @@ class Generate
         $controller .= "       \$params = \$request->request->all();\n";
         $controller .= "        $".$object_name." = new ".ucfirst($object_name)."();\n";
         foreach ($res as $row) {
-            $controller .= "        \$".$object_name."->".$row[0]." = \$params['$row[0]'];\n";
+            $champs      = $row['Field'];
+            $controller .= "        \$".$object_name."->".$champs." = \$params['".$champs."'];\n";
         }
 
         $controller .= "       \$".$object_name."->save();\n";
