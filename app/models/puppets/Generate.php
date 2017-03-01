@@ -112,7 +112,7 @@ class Generate
     public function generateOneController($table, $namespace) {
         $res         = $this->getField($table);
         $arrayInfo   = $this->getInfos($table);
-        $colId       = $res[0][0];
+        $colId       = $res[0]['Field'];
         $object_name = $arrayInfo['objectName'];
         $class_name  = $arrayInfo['className'];
 
@@ -380,21 +380,22 @@ class Generate
 
         $class .= "\n";
         $class .= "    protected static \$db;\n";
-        $class .= "    protected static \$database = 'database_name';\n\n";
+        $class .= "    protected static \$database = '$this->database';\n\n";
 
         $class .= "    /**\n";
         $class .= "    * @function __construct()\n";
         $class .= "    * @brief    Create a new $class_name object.\n";
         $class .= "    * @details  Create a new $class_name object.\n";
         $class .= "    *\n";
-        $class .= "    * @param $id\n";
+        $class .= "    * @param int \$$id 'id of $class_name object'\n";
         $class .= "    *\n";
         $class .= "    * @return <boolean>\n";
         $class .= "    *\n";
         $class .= "    * @access public\n";
         $class .= "    **/\n";
         $class .= "    public function __construct(\$$id = null) {\n";
-        $class .= "        self::\$db = \$this->db();\n\n";
+        $class .= "        self::\$db = \$this->db();\n";
+        $class .= "        self::\$database = \$this->database();\n\n";
 
         for ($c = 0; $c < $columns_count; $c ++) {
             if ($columns[$c]["Key"] == "PRI") {
@@ -505,7 +506,7 @@ class Generate
 
         $class .= "\n";
         $class .= "        if(\$this->$id !== null) {\n";
-        $class .= "            \$row = self::\$db->fetchAssoc(\"SELECT * FROM ".$this->database.".`$table` WHERE id=:id\", array(\"$id\" => \$this->$id));\n";
+        $class .= "            \$row = self::\$db->fetchAssoc(\"SELECT * FROM \".self::\$database.\".`$table` WHERE id=:id\", array(\"$id\" => \$this->$id));\n";
         $class .= "            if (count(\$row) > 0) {\n";
         for ($c = 0; $c < $columns_count; $c ++) {
             $class .= "                \$this->".$columns[$c]["Field"]." = \$row[\"".$columns[$c]["Field"]."\"];\n";
@@ -514,7 +515,7 @@ class Generate
         $class .= "            } else {\n";
         $class .= "                throw new \Exception(\"`$table` loading failed : there no ".$this->database.".`$table` of id : \$this->$id.\");\n";
         $class .= "            }\n";
-        $class .= "        }\n";
+        $class .= "        }\n\n";
         $class .= "        return \$this;\n";
         $class .= "    }\n\n";
 
@@ -535,18 +536,18 @@ class Generate
         $class .= "        return self::\$db;\n";
         $class .= "    }\n\n";
 
-        $class .= "/**\n";
-        $class .= "* @function database()\n";
-        $class .= "* @brief    Get the name of database used.\n";
-        $class .= "* @details   Get the name of database used.\n";
-        $class .= "*\n";
-        $class .= "* @return <boolean>\n";
-        $class .= "*\n";
-        $class .= "* @static\n";
-        $class .= "**/\n";
-        $class .= "protected static function database() {\n";
-        $class .= "    return self::\$database;\n";
-        $class .= "}\n\n";
+        $class .= "    /**\n";
+        $class .= "    * @function database()\n";
+        $class .= "    * @brief    Get the name of database used.\n";
+        $class .= "    * @details   Get the name of database used.\n";
+        $class .= "    *\n";
+        $class .= "    * @return <boolean>\n";
+        $class .= "    *\n";
+        $class .= "    * @static\n";
+        $class .= "    **/\n";
+        $class .= "    protected static function database() {\n";
+        $class .= "        return self::\$database;\n";
+        $class .= "    }\n\n";
 
         $class .= "    /**\n";
         $class .= "    * @function save()\n";
@@ -579,9 +580,9 @@ class Generate
         if ($flag_date_columns === true) {
             $class .= "            unset($".$object_name."_data[\"date_add\"]);\n\n";
         }
-        $class .= "            self::\$db->update(\"".$this->database.".`$table`\", \$".$object_name."_data, array(\"$id\" => \$this->id));\n";
+        $class .= "            self::\$db->update(self::\$database.\".`$table`\", \$".$object_name."_data, array(\"$id\" => \$this->id));\n";
         $class .= "        } else {\n";
-        $class .= "            self::\$db->insert(\"".$this->database.".`$table`\", \$".$object_name."_data);\n";
+        $class .= "            self::\$db->insert(self::\$database.\".`$table`\", \$".$object_name."_data);\n";
         $class .= "            \$this->id = self::\$db->lastInsertId();\n\n";
         $class .= "            return \$this->id;\n";
         $class .= "        }\n";
@@ -599,13 +600,13 @@ class Generate
         $class .= "    * @static\n";
         $class .= "    **/\n";
         $class .= "    public static function delete(\$id = null) {\n";
-        $class .= "        self::\$db->delete(\"".$this->database.".`$table`\", array(\"$id\" => \$id));\n";
-        $class .= "\n";
+        $class .= "        self::\$db->delete(self::\$database.\".`$table`\", array(\"$id\" => \$id));\n";
+        $class .= "\n\n";
         $class .= "        return true;\n";
         $class .= "    }\n";
         $class .= "}\n";
 
-        if ($all == false) {
+        if ($all != true) {
             $filename = "../models/".$namespace."/entities/".$class_name.".php";
             if (file_exists($filename)) {
                 echo "*\n";
@@ -620,8 +621,6 @@ class Generate
                     echo "*****************************************************\n";
                     return false;
                 }
-            } else {
-                    echo "* Le fichier a été regénéré ! \n";
             }
         }
 
@@ -652,7 +651,7 @@ class Generate
         $res       = $this->getField($table);
         $arrayInfo = $this->getInfos($table);
 
-        $colId      = $res[0][0];
+        $colId  = $res[0]['Field'];
         $object_name = $arrayInfo['objectName'];
         $class_name  = $arrayInfo['className'];
 
@@ -695,8 +694,8 @@ class Generate
         $model .= "    *\n";
         $model .= "    * @return this\n";
         $model .= "    */\n";
-        $model .= "    public function __construct() {\n";
-        $model .= "        parent::__construct();\n";
+        $model .= "    public function __construct(\$id) {\n";
+        $model .= "        parent::__construct(\$id);\n\n";
         $model .= "        return \$this;\n";
         $model .= "    }\n\n";
 
@@ -780,7 +779,7 @@ class Generate
      */
     public function generateOneRoute($table) {
         $res         = $this->getField($table);
-        $colId       = $res[0][0];
+        $colId       = $res[0]['Field'];
         $arrayInfo   = $this->getInfos($table);
         $object_name = $arrayInfo['objectName'];
         $class_name  = $arrayInfo['className'];
@@ -850,7 +849,7 @@ class Generate
      */
     public function generateViews($table) {
         $res         = $this->getField($table);
-        $colId       = $res[0][0];
+        $colId       = $res[0]['Field'];
         $arrayInfo   = $this->getInfos($table);
         $object_name = $arrayInfo['objectName'];
         $class_name  = $arrayInfo['className'];
@@ -945,10 +944,10 @@ class Generate
         $show .= "            <!-- /.box-body -->\n";
         $show .= "        </div>\n";
         $show .= "        <a href=\"{{path('".$object_name."_edit',
-            {'".$res[0][0]."' : ".$object_name.".".$res[0][0]." })}}\"
+            {'".$res[0]['Field']."' : ".$object_name.".".$res[0]['Field']." })}}\"
             class=\"btn btn-primary btn-block margin-bottom\">Editer $object_name</a>";
         $show .= "        <form method=\"post\" action=\"{{path('".$object_name."_delete',
-            {'".$res[0][0]."' : ".$object_name.".".$res[0][0]." })}}\">\n";
+            {'".$res[0]['Field']."' : ".$object_name.".".$res[0]['Field']." })}}\">\n";
         $show .= "                    <button type=\"submit\"
         class=\"btn btn-danger btn-block btn-flat\">Supprimer $object_name </button>";
         $show .= "        </form>";
@@ -1004,7 +1003,7 @@ class Generate
         $edit .= "{% block content %}\n";
         $edit .= "<div class=\"row\">\n";
         $edit .= "    <div class=\"col-xs-12\">\n";
-        $edit .= "        <form method=\"post\" action=\"{{path('".$object_name."_update', {'".$res[0][0]."' : ".$object_name.".".$res[0][0]." })}}\">\n";
+        $edit .= "        <form method=\"post\" action=\"{{path('".$object_name."_update', {'".$res[0]['Field']."' : ".$object_name.".".$res[0]['Field']." })}}\">\n";
 
         foreach ($res as $row) {
             $edit .= "            <div class=\"form-group has-feedback\">\n";
