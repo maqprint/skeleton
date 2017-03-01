@@ -172,7 +172,7 @@ class Generate
         $controller .= "     */\n";
         $controller .= "    public function show(\$".$colId.", Application \$app) {\n";
         $controller .= "         \$".$object_name." = new ".ucfirst($object_name)."(); \n";
-        $controller .= "         \$".$object_name." = \$".$object_name."->getById(\$".$colId.");\n";
+        $controller .= "         \$".$object_name." = \$".$object_name."(\$".$colId.");\n";
         $controller .= "        return \$app['twig']->render('$object_name/show.html.twig', array('$object_name' => $".$object_name."));\n";
         $controller .= "    }\n\n";
 
@@ -214,7 +214,7 @@ class Generate
         $controller .= "     */\n";
         $controller .= "    public function edit($".$colId.", Application \$app) {\n";
         $controller .= "        \$".$object_name." = new ".ucfirst($object_name)."();\n";
-        $controller .= "        \$".$object_name." = \$".$object_name."->getById(\$".$colId.");\n";
+        $controller .= "        \$".$object_name." = \$".$object_name."(\$".$colId.");\n";
         $controller .= "        return \$app['twig']->render('$object_name/edit.html.twig', array('$object_name' => $".$object_name."));\n";
         $controller .= "    }\n\n";
 
@@ -708,8 +708,8 @@ class Generate
         $model .= "        \$result = self::db()->fetchAll('SELECT * FROM $table');\n";
         $model .= "        foreach (\$result as \$row) {\n";
         $model .= "            \$".$colId." = \$row['".$colId."'];\n";
-        $model .= "            $".$object_name." = new ".ucfirst($object_name)."();\n";
-        $model .= "            \$array_".$object_name."[\$".$colId."] = $".$object_name."->getById(\$".$colId.");\n";
+        $model .= "            $".$object_name." = new ".ucfirst($object_name)."(\$$colId);\n";
+        $model .= "            \$array_".$object_name."[\$".$colId."] = $".$object_name.";\n";
         $model .= "        }\n\n";
         $model .= "        return \$array_".$object_name.";\n";
         $model .= "    }\n";
