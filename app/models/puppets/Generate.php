@@ -44,12 +44,13 @@ class Generate
      *
      * @return void
      */
-    public function __construct($host, $user, $password, $database) {
+    public function __construct($host, $user, $password, $database, $flag_force_database = false) {
         $this->host     = $host;
         $this->user     = $user;
         $this->password = $password;
         $this->database = $database;
         $this->charset  = "UTF8";
+        $this->flag_force_database = $flag_force_database;
 
         $mysqli = new \mysqli($host, $user, $password, $database);
 
@@ -62,11 +63,11 @@ class Generate
 
 
     /**
-     * Function getField
-     *
-     * @param string $table 'nom de la table dans la base de donnée'
-     * @return array $res 'tableau contenant les champs de la table
-     */
+ * Function getField
+ *
+ * @param string $table 'nom de la table dans la base de donnée'
+ * @return array $res 'tableau contenant les champs de la table
+ */
     public function getField($table) {
         $colsquery = $this->db->query("describe ".$this->database.".`$table`;");
         if ($colsquery->num_rows > 0) {
@@ -324,7 +325,9 @@ class Generate
      * @return false
      **/
     public function generateOneEntity($table, $namespace, $all = false) {
-        $flag_date_columns = false;
+        $flag_date_columns  = false;
+        $flag_take1st_forid = false;
+
         $columns           = $this->getField($table);
         $array_info        = $this->getInfos($table);
         $object_name       = $array_info["objectName"];
@@ -336,6 +339,12 @@ class Generate
                 $id = $columns[$c]["Field"];
                 break;
             }
+        }
+
+        if(empty($id)) {
+            $id = $columns[0]["Field"];
+
+            $flag_take1st_forid = true;
         }
 
         $class  = "<?php\n";
@@ -382,8 +391,9 @@ class Generate
 
         $class .= "\n";
         $class .= "    protected static \$db;\n";
-        $class .= "    protected static \$database = '$this->database';\n\n";
-
+        if($this->flag_force_database === true) {
+            $class .= "    protected static \$database = '$this->database';\n\n";
+        }
         $class .= "    /**\n";
         $class .= "    * @function __construct()\n";
         $class .= "    * @brief    Create a new $class_name object.\n";
@@ -397,109 +407,113 @@ class Generate
         $class .= "    **/\n";
         $class .= "    public function __construct(\$$id = null) {\n";
         $class .= "        self::\$db = \$this->db();\n";
-        $class .= "        self::\$database = \$this->database();\n\n";
+
+        if($this->flag_force_database === true) {
+            $class .= "        self::\$database = \$this->database();\n\n";
+        }
 
         for ($c = 0; $c < $columns_count; $c ++) {
-            if ($columns[$c]["Key"] == "PRI") {
+            if (($columns[$c]["Key"] == "PRI") || ($flag_take1st_forid == true && $c == 0)) {
                 $class .= "        \$this->".$columns[$c]["Field"]." = \$$id;\n";
             } elseif (strtolower($columns[$c]["Null"]) == "no") {
                 preg_match_all("/^([a-z]+)\(?([0-9]+)?\)?$/i", strtolower($columns[$c]["Type"]), $result);
+                if (is_array($result[1][0])) {
+                    switch($result[1][0]) {
+                        default:
+                        case "char":
+                        case "varchar":
+                        case "tinytext":
+                        case "text":
+                        case "mediumtext":
+                        case "longtext":
+                        case "binary":
+                        case "varbinary":
+                        case "tinyblob":
+                        case "mediumblob":
+                        case "blob":
+                        case "longblobv":
+                        case "enum":
+                        case "geometry":
+                        case "point":
+                        case "linestring":
+                        case "polygon":
+                        case "multipoint":
+                        case "multilinestring":
+                        case "multipolygon":
+                        case "geometrycollection":
+                        case "json":
+                            if ($columns[$c]["Default"] != "") {
+                                $class .= "        \$this->".$columns[$c]["Field"]." = '".$columns[$c]["Default"]."';\n";
+                            } else {
+                                $class .= "        \$this->".$columns[$c]["Field"]." = null;\n";
+                            }
+                            break;
 
-                switch($result[1][0]) {
-                    default:
-                    case "char":
-                    case "varchar":
-                    case "tinytext":
-                    case "text":
-                    case "mediumtext":
-                    case "longtext":
-                    case "binary":
-                    case "varbinary":
-                    case "tinyblob":
-                    case "mediumblob":
-                    case "blob":
-                    case "longblobv":
-                    case "enum":
-                    case "geometry":
-                    case "point":
-                    case "linestring":
-                    case "polygon":
-                    case "multipoint":
-                    case "multilinestring":
-                    case "multipolygon":
-                    case "geometrycollection":
-                    case "json":
-                        if ($columns[$c]["Default"] != "") {
-                            $class .= "        \$this->".$columns[$c]["Field"]." = '".$columns[$c]["Default"]."';\n";
-                        } else {
-                            $class .= "        \$this->".$columns[$c]["Field"]." = null;\n";
-                        }
-                        break;
+                        case "tinyint":
+                        case "smallint":
+                        case "mediumint":
+                        case "int":
+                        case "bigint":
+                        case "decimal":
+                        case "float":
+                        case "double":
+                        case "real":
+                        case "bit":
+                            if ($columns[$c]["Default"] != "") {
+                                $class .= "        \$this->".$columns[$c]["Field"]." = ".$columns[$c]["Default"].";\n";
+                            } else {
+                                $class .= "        \$this->".$columns[$c]["Field"]." = null;\n";
+                            }
+                            break;
 
-                    case "tinyint":
-                    case "smallint":
-                    case "mediumint":
-                    case "int":
-                    case "bigint":
-                    case "decimal":
-                    case "float":
-                    case "double":
-                    case "real":
-                    case "bit":
-                        if ($columns[$c]["Default"] != "") {
-                            $class .= "        \$this->".$columns[$c]["Field"]." = ".$columns[$c]["Default"].";\n";
-                        } else {
-                            $class .= "        \$this->".$columns[$c]["Field"]." = null;\n";
-                        }
-                        break;
+                        case "boolean":
+                            if ($columns[$c]["Default"] != "") {
+                                $class .= "        \$this->".$columns[$c]["Field"]." = ".$columns[$c]["Default"].";\n";
+                            } else {
+                                $class .= "        \$this->".$columns[$c]["Field"]." = null;\n";
+                            }
+                            break;
 
-                    case "boolean":
-                        if ($columns[$c]["Default"] != "") {
-                            $class .= "        \$this->".$columns[$c]["Field"]." = ".$columns[$c]["Default"].";\n";
-                        } else {
-                            $class .= "        \$this->".$columns[$c]["Field"]." = null;\n";
-                        }
-                        break;
+                        case "year":
+                            if ($columns[$c]["Default"] != "") {
+                                $class .= "        \$this->".$columns[$c]["Field"]." = '".$columns[$c]["Default"]."';\n";
+                            } else {
+                                $class .= "        \$this->".$columns[$c]["Field"]." = null;\n";
+                            }
+                            break;
 
-                    case "year":
-                        if ($columns[$c]["Default"] != "") {
-                            $class .= "        \$this->".$columns[$c]["Field"]." = '".$columns[$c]["Default"]."';\n";
-                        } else {
-                            $class .= "        \$this->".$columns[$c]["Field"]." = null;\n";
-                        }
-                        break;
+                        case "date":
+                            if ($columns[$c]["Default"] != "") {
+                                $class .= "        \$this->".$columns[$c]["Field"]." = '".$columns[$c]["Default"]."';\n";
+                            } else {
+                                $class .= "        \$this->".$columns[$c]["Field"]." = null;\n";
+                            }
+                            break;
 
-                    case "date":
-                        if ($columns[$c]["Default"] != "") {
-                            $class .= "        \$this->".$columns[$c]["Field"]." = '".$columns[$c]["Default"]."';\n";
-                        } else {
-                            $class .= "        \$this->".$columns[$c]["Field"]." = null;\n";
-                        }
-                        break;
+                        case "time":
+                            if ($columns[$c]["Default"] != "") {
+                                $class .= "        \$this->".$columns[$c]["Field"]." = '".$columns[$c]["Default"]."';\n";
+                            } else {
+                                $class .= "        \$this->".$columns[$c]["Field"]." = null;\n";
+                            }
+                            break;
 
-                    case "time":
-                        if ($columns[$c]["Default"] != "") {
-                            $class .= "        \$this->".$columns[$c]["Field"]." = '".$columns[$c]["Default"]."';\n";
-                        } else {
-                            $class .= "        \$this->".$columns[$c]["Field"]." = null;\n";
-                        }
-                        break;
+                        case "datetime":
+                            if ($columns[$c]["Default"] != "") {
+                                $class .= "        \$this->".$columns[$c]["Field"]." = '".$columns[$c]["Default"]."';\n";
+                            } else {
+                                $class .= "        \$this->".$columns[$c]["Field"]." = null;\n";
+                            }
+                            break;
 
-                    case "datetime":
-                        if ($columns[$c]["Default"] != "") {
-                            $class .= "        \$this->".$columns[$c]["Field"]." = '".$columns[$c]["Default"]."';\n";
-                        } else {
-                            $class .= "        \$this->".$columns[$c]["Field"]." = null;\n";
-                        }
-                        break;
-
-                    case "timestamp":
-                        if ($columns[$c]["Default"] != "") {
-                            $class .= "        \$this->".$columns[$c]["Field"]." = '".$columns[$c]["Default"]."';\n";
-                        } else {
-                            $class .= "        \$this->".$columns[$c]["Field"]." = null;\n";
-                        }
-                        break;
+                        case "timestamp":
+                            if ($columns[$c]["Default"] != "") {
+                                $class .= "        \$this->".$columns[$c]["Field"]." = '".$columns[$c]["Default"]."';\n";
+                            } else {
+                                $class .= "        \$this->".$columns[$c]["Field"]." = null;\n";
+                            }
+                            break;
+                    }
                 }
             } else {
                 $class .= "        \$this->".$columns[$c]["Field"]." = null;\n";
@@ -508,14 +522,23 @@ class Generate
 
         $class .= "\n";
         $class .= "        if(\$this->$id !== null) {\n";
-        $class .= "            \$row = self::\$db->fetchAssoc(\"SELECT * FROM \".self::\$database.\".`$table` WHERE id=:id\", array(\"$id\" => \$this->$id));\n";
-        $class .= "            if (count(\$row) > 0) {\n";
+        if($this->flag_force_database === true) {
+            $class .= "            \$row = self::\$db->fetchAssoc(\"SELECT * FROM \".self::\$database.\".`$table` WHERE $id=:$id\", array(\"$id\" => \$this->$id));\n";
+        } else {
+            $class .= "            \$row = self::\$db->fetchAssoc(\"SELECT * FROM `$table` WHERE $id=:$id\", array(\"$id\" => \$this->$id));\n";
+        }
+
+        $class .= "            if ((count(\$row) > 0) && (\$row !== false)) {\n";
         for ($c = 0; $c < $columns_count; $c ++) {
             $class .= "                \$this->".$columns[$c]["Field"]." = \$row[\"".$columns[$c]["Field"]."\"];\n";
         }
 
         $class .= "            } else {\n";
-        $class .= "                throw new \Exception(\"`$table` loading failed : there no ".$this->database.".`$table` of id : \$this->$id.\");\n";
+        if($this->flag_force_database === true) {
+            $class .= "                throw new \Exception(\"`$table` loading failed : there no ".$this->database.".`$table` of $id : \$this->$id.\");\n";
+        } else {
+            $class .= "                throw new \Exception(\"`$table` loading failed : there no `$table` of $id : \$this->$id.\");\n";
+        }
         $class .= "            }\n";
         $class .= "        }\n\n";
         $class .= "        return \$this;\n";
@@ -538,23 +561,24 @@ class Generate
         $class .= "        return self::\$db;\n";
         $class .= "    }\n\n";
 
-        $class .= "    /**\n";
-        $class .= "    * @function database()\n";
-        $class .= "    * @brief    Get the name of database used.\n";
-        $class .= "    * @details   Get the name of database used.\n";
-        $class .= "    *\n";
-        $class .= "    * @return <boolean>\n";
-        $class .= "    *\n";
-        $class .= "    * @static\n";
-        $class .= "    **/\n";
-        $class .= "    protected static function database() {\n";
-        $class .= "        return self::\$database;\n";
-        $class .= "    }\n\n";
-
+        if($this->flag_force_database === true) {
+            $class .= "    /**\n";
+            $class .= "    * @function database()\n";
+            $class .= "    * @brief    Get the name of database used.\n";
+            $class .= "    * @details   Get the name of database used.\n";
+            $class .= "    *\n";
+            $class .= "    * @return <boolean>\n";
+            $class .= "    *\n";
+            $class .= "    * @static\n";
+            $class .= "    **/\n";
+            $class .= "    protected static function database() {\n";
+            $class .= "        return self::\$database;\n";
+            $class .= "    }\n\n";
+        }
         $class .= "    /**\n";
         $class .= "    * @function save()\n";
-        $class .= "    * @brief    save an $table object.\n";
-        $class .= "    * @details  save an $table object.\n";
+        $class .= "    * @brief    save a $table object.\n";
+        $class .= "    * @details  save a $table object.\n";
         $class .= "    *\n";
         $class .= "    * @return <boolean>\n";
         $class .= "    *\n";
@@ -573,27 +597,112 @@ class Generate
                     $flag_date_columns = true;
                     $class .= "           \"".$columns[$c]["Field"]."\" => date(\"Y-m-d H:i:s\"),\n";
                     break;
+                case "date_delete": 
+                    break;
             }
         }
 
         $class .= "        );\n\n";
 
-        $class .= "        if(\$this->id) { // si c'est un update\n";
+        $class .= "        if(\$this->$id) { // si c'est un update\n";
         if ($flag_date_columns === true) {
             $class .= "            unset($".$object_name."_data[\"date_add\"]);\n\n";
         }
-        $class .= "            self::\$db->update(self::\$database.\".`$table`\", \$".$object_name."_data, array(\"$id\" => \$this->id));\n";
+        if($this->flag_force_database === true) {
+            $class .= "            self::\$db->update(self::\$database.\".`$table`\", \$".$object_name."_data, array(\"$id\" => \$this->$id));\n";
+        } else {
+            $class .= "            self::\$db->update(\"`$table`\", \$".$object_name."_data, array(\"$id\" => \$this->$id));\n";
+        }
         $class .= "        } else {\n";
-        $class .= "            self::\$db->insert(self::\$database.\".`$table`\", \$".$object_name."_data);\n";
-        $class .= "            \$this->id = self::\$db->lastInsertId();\n\n";
-        $class .= "            return \$this->id;\n";
+        if($this->flag_force_database === true) {
+            $class .= "            self::\$db->insert(self::\$database.\".`$table`\", \$".$object_name."_data);\n";
+        } else {
+            $class .= "            self::\$db->insert(\"`$table`\", \$".$object_name."_data);\n";
+        }
+        $class .= "            \$this->$id = self::\$db->lastInsertId();\n\n";
+        $class .= "            return \$this->$id;\n";
         $class .= "        }\n";
         $class .= "    }\n\n";
+        
+        $class .= "    /**\n";
+        $class .= "    * @function remove()\n";
+        $class .= "    * @brief    remove a $table object.\n";
+        $class .= "    * @details  remove a $table object (set date_delete).\n";
+        $class .= "    *\n";
+        $class .= "    * @return <boolean>\n";
+        $class .= "    *\n";
+        $class .= "    * @access public\n";
+        $class .= "    **/\n";
+        $class .= "    public function remove() {\n";
+        $class .= "        $".$object_name."_data = array(\n";
+        for ($c = 0; $c < $columns_count; $c ++) {
+            switch(strtolower($columns[$c]["Field"])) {
+                default:
+                case "date_add":
+                case "date_edit": 
+                    break;
+                case "id" : 
+                    $class .= "           \"".$columns[$c]["Field"]."\" => \$this->".$columns[$c]["Field"].",\n";
+                    break;
+                case "date_delete":
+                    $flag_date_columns = true;
+                    $class .= "           \"".$columns[$c]["Field"]."\" => date(\"Y-m-d H:i:s\"),\n";                   
+                    break;
+            }
+        }
+        
+        $class .= "        );\n\n";       
+        if($this->flag_force_database === true) {
+            $class .= "        self::\$db->update(self::\$database.\".`$table`\", \$".$object_name."_data, array(\"$id\" => \$this->$id));\n";
+        } else {
+            $class .= "        self::\$db->update(\"`$table`\", \$".$object_name."_data, array(\"$id\" => \$this->$id));\n";
+        }
+        $class .= "        return true;\n";
+        $class .= "    }\n\n";
+        
+        
+        $class .= "    /**\n";
+        $class .= "    * @function reload()\n";
+        $class .= "    * @brief    reload a $table object.\n";
+        $class .= "    * @details  reload a $table object (set date_delete to NULL).\n";
+        $class .= "    *\n";
+        $class .= "    * @return <boolean>\n";
+        $class .= "    *\n";
+        $class .= "    * @access public\n";
+        $class .= "    **/\n";
+        $class .= "    public function reload() {\n";
+        $class .= "        $".$object_name."_data = array(\n";
+        for ($c = 0; $c < $columns_count; $c ++) {
+            switch(strtolower($columns[$c]["Field"])) {
+                default:
+                case "date_add":
+                    break;
+                case "id" :
+                    $class .= "           \"".$columns[$c]["Field"]."\" => \$this->".$columns[$c]["Field"].",\n";
+                    break;
+                case "date_edit":
+                    $flag_date_columns = true;
+                    $class .= "           \"".$columns[$c]["Field"]."\" => date(\"Y-m-d H:i:s\"),\n";
+                    break;
+                case "date_delete" :
+                    $flag_date_columns = true;
+                    $class .= "           \"".$columns[$c]["Field"]."\" => NULL,\n";
+            }
+        }        
+        $class .= "        );\n\n";  
+        if($this->flag_force_database === true) {
+            $class .= "        self::\$db->update(self::\$database.\".`$table`\", \$".$object_name."_data, array(\"$id\" => \$this->$id));\n";
+        } else {
+            $class .= "        self::\$db->update(\"`$table`\", \$".$object_name."_data, array(\"$id\" => \$this->$id));\n";
+        }
+        $class .= "        return true;\n";
+        $class .= "    }\n\n";
+        
 
         $class .= "    /**\n";
         $class .= "    * @function delete()\n";
-        $class .= "    * @brief    delete an $table object.\n";
-        $class .= "    * @details  delete an $table object.\n";
+        $class .= "    * @brief    delete a $table object.\n";
+        $class .= "    * @details  delete a $table object.\n";
         $class .= "    *\n";
         $class .= "    * @param integer $id the id of $table object to delete\n";
         $class .= "    *\n";
@@ -602,7 +711,11 @@ class Generate
         $class .= "    * @static\n";
         $class .= "    **/\n";
         $class .= "    public static function delete(\$id = null) {\n";
-        $class .= "        self::\$db->delete(self::\$database.\".`$table`\", array(\"$id\" => \$id));\n";
+        if($this->flag_force_database === true) {
+            $class .= "        self::\$db->delete(self::\$database.\".`$table`\", array(\"$id\" => \$id));\n";
+        } else {
+            $class .= "        self::\$db->delete(\"`$table`\", array(\"$id\" => \$id));\n";
+        }
         $class .= "\n\n";
         $class .= "        return true;\n";
         $class .= "    }\n";
@@ -641,6 +754,32 @@ class Generate
         echo "*\n";
     }
 
+    /**
+     * function generateAllModels
+     *
+     * @param string $namespace 'nom de la table dans la base de donnée'
+     *
+     * @return void
+     */
+    public function generateAllModels($namespace) {
+        $resutlt = $this->db->query("show tables");
+        $res     = $resutlt->fetch_all();
+
+        echo "* Voulez vous tout regénérer [All] ? (y/n) : ";
+        $input = fgets(STDIN);
+        $input = substr($input, 0, -1);
+        if($input == "y" || $input == "Y") {
+            foreach ($res as $row) {
+                $all = true;
+                $this->generateOneModel($row[0], $namespace, $all);
+            }
+        } else {
+            foreach ($res as $row) {
+                $this->generateOneModel($row[0], $namespace);
+            }
+        }
+    }
+
 
     /**
      * Function generateOneModel
@@ -649,15 +788,16 @@ class Generate
      * @param string $namespace 'le nom du namespace'
      * @return void
      */
-    public function generateOneModel($table, $namespace) {
-        $res       = $this->getField($table);
+    public function generateOneModel($table, $namespace)
+    {
+        $res = $this->getField($table);
         $arrayInfo = $this->getInfos($table);
 
-        $colId  = $res[0]['Field'];
+        $colId = $res[0]['Field'];
         $object_name = $arrayInfo['objectName'];
-        $class_name  = $arrayInfo['className'];
+        $class_name = $arrayInfo['className'];
 
-        $model  = "<?php\n";
+        $model = "<?php\n";
         $model .= "/**\n";
         $model .= " *\n";
         $model .= " * PHP Version 7\n";
@@ -689,7 +829,7 @@ class Generate
         $model .= " * @since      N.A\n";
         $model .= " * @deprecated N.A\n";
         $model .= " */\n";
-        $model .= "class ".$class_name." extends entities\\".$class_name."\n{\n\n";
+        $model .= "class " . $class_name . " extends entities\\" . $class_name . "\n{\n\n";
 
         $model .= "    /**\n";
         $model .= "    *Fonction __construct\n";
@@ -702,20 +842,32 @@ class Generate
         $model .= "    }\n\n";
 
         $model .= "    /**\n";
-        $model .= "    *Fonction getAll\n";
+        $model .= "    *Fonction all()\n";
+        $model .= "    * @brief    Get all visible $object_name.\n";
+        $model .= "    * @details  Get all visible $object_name.\n";
+        $model .= "    * @param boolean \$return_object flag to output objects array or integer array\n";
         $model .= "    *\n";
-        $model .= "    * @return array $class_name \$".$object_name."\n";
+        $model .= "    * @return array $class_name \$" . $object_name . "\n";
         $model .= "    */\n";
-        $model .= "    public static function getAll() {\n";
-        $model .= "        \$result = self::db()->fetchAll('SELECT * FROM '.self::\$database.'.`$table`');\n";
-        $model .= "        foreach (\$result as \$row) {\n";
-        $model .= "            \$".$colId." = \$row['".$colId."'];\n";
-        $model .= "            $".$object_name." = new ".ucfirst($object_name)."(\$$colId);\n";
-        $model .= "            \$array_".$object_name."[\$".$colId."] = $".$object_name.";\n";
-        $model .= "        }\n\n";
-        $model .= "        return \$array_".$object_name.";\n";
+        $model .= "    public static function all(\$return_object = false) {\n";
+        $model .= "        \$return = (array)null;\n\n";
+        if ($this->flag_force_database === true) {
+            $model .= "        \$rows = self::db()->fetchAll('SELECT * FROM '.self::\$database.'.`$table`');\n";
+        } else {
+            $model .= "        \$rows = self::db()->fetchAll('SELECT * FROM `$table`');\n";
+
+        }
+        $model .= "        if(count(\$rows) > 0) {\n";
+        $model .= "            foreach (\$rows as \$row) {\n";
+        $model .= "                if(\$return_object === true){\n";
+        $model .= "                    \$return[] = new ".ucfirst($object_name)."(\$row['". $colId."']);\n";
+        $model .= "                } else {\n";
+        $model .= "                    \$return[] = \$row['". $colId ."'];\n";
+        $model .= "                }\n";
+        $model .= "            }\n";
+        $model .= "        }\n";
+        $model .= "        return \$return;\n";
         $model .= "    }\n";
-        $model .= "}\n";
 
         $filename = "../models/".$namespace."/".$class_name.".php";
         if (file_exists($filename)) {
