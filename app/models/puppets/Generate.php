@@ -597,7 +597,7 @@ class Generate
                     $flag_date_columns = true;
                     $class .= "           \"".$columns[$c]["Field"]."\" => date(\"Y-m-d H:i:s\"),\n";
                     break;
-                case "date_delete": 
+                case "date_delete":
                     break;
             }
         }
@@ -623,7 +623,7 @@ class Generate
         $class .= "            return \$this->$id;\n";
         $class .= "        }\n";
         $class .= "    }\n\n";
-        
+
         $class .= "    /**\n";
         $class .= "    * @function remove()\n";
         $class .= "    * @brief    remove a $table object.\n";
@@ -639,19 +639,19 @@ class Generate
             switch(strtolower($columns[$c]["Field"])) {
                 default:
                 case "date_add":
-                case "date_edit": 
+                case "date_edit":
                     break;
-                case "id" : 
+                case "id" :
                     $class .= "           \"".$columns[$c]["Field"]."\" => \$this->".$columns[$c]["Field"].",\n";
                     break;
                 case "date_delete":
                     $flag_date_columns = true;
-                    $class .= "           \"".$columns[$c]["Field"]."\" => date(\"Y-m-d H:i:s\"),\n";                   
+                    $class .= "           \"".$columns[$c]["Field"]."\" => date(\"Y-m-d H:i:s\"),\n";
                     break;
             }
         }
-        
-        $class .= "        );\n\n";       
+
+        $class .= "        );\n\n";
         if($this->flag_force_database === true) {
             $class .= "        self::\$db->update(self::\$database.\".`$table`\", \$".$object_name."_data, array(\"$id\" => \$this->$id));\n";
         } else {
@@ -659,8 +659,8 @@ class Generate
         }
         $class .= "        return true;\n";
         $class .= "    }\n\n";
-        
-        
+
+
         $class .= "    /**\n";
         $class .= "    * @function reload()\n";
         $class .= "    * @brief    reload a $table object.\n";
@@ -688,8 +688,8 @@ class Generate
                     $flag_date_columns = true;
                     $class .= "           \"".$columns[$c]["Field"]."\" => NULL,\n";
             }
-        }        
-        $class .= "        );\n\n";  
+        }
+        $class .= "        );\n\n";
         if($this->flag_force_database === true) {
             $class .= "        self::\$db->update(self::\$database.\".`$table`\", \$".$object_name."_data, array(\"$id\" => \$this->$id));\n";
         } else {
@@ -697,7 +697,7 @@ class Generate
         }
         $class .= "        return true;\n";
         $class .= "    }\n\n";
-        
+
 
         $class .= "    /**\n";
         $class .= "    * @function delete()\n";
@@ -840,34 +840,7 @@ class Generate
         $model .= "        parent::__construct(\$$colId);\n\n";
         $model .= "        return \$this;\n";
         $model .= "    }\n\n";
-
-        $model .= "    /**\n";
-        $model .= "    *Fonction all()\n";
-        $model .= "    * @brief    Get all visible $object_name.\n";
-        $model .= "    * @details  Get all visible $object_name.\n";
-        $model .= "    * @param boolean \$return_object flag to output objects array or integer array\n";
-        $model .= "    *\n";
-        $model .= "    * @return array $class_name \$" . $object_name . "\n";
-        $model .= "    */\n";
-        $model .= "    public static function all(\$return_object = false) {\n";
-        $model .= "        \$return = (array)null;\n\n";
-        if ($this->flag_force_database === true) {
-            $model .= "        \$rows = self::db()->fetchAll('SELECT * FROM '.self::\$database.'.`$table`');\n";
-        } else {
-            $model .= "        \$rows = self::db()->fetchAll('SELECT * FROM `$table`');\n";
-
-        }
-        $model .= "        if(count(\$rows) > 0) {\n";
-        $model .= "            foreach (\$rows as \$row) {\n";
-        $model .= "                if(\$return_object === true){\n";
-        $model .= "                    \$return[] = new ".ucfirst($object_name)."(\$row['". $colId."']);\n";
-        $model .= "                } else {\n";
-        $model .= "                    \$return[] = \$row['". $colId ."'];\n";
-        $model .= "                }\n";
-        $model .= "            }\n";
-        $model .= "        }\n";
-        $model .= "        return \$return;\n";
-        $model .= "    }\n";
+        $model .= "}\n";
 
         $filename = "../models/".$namespace."/".$class_name.".php";
         if (file_exists($filename)) {
