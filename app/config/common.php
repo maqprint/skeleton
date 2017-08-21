@@ -49,6 +49,9 @@ $app->register(new Silex\Provider\AssetServiceProvider(), array(
     ),
 ));
 
+/* Dump viewer */
+$app->register(new Silex\Provider\VarDumperServiceProvider());
+
 /* Debug bar */
 if($app['debug'] == true){
     $app->register(new Provider\ServiceControllerServiceProvider());
