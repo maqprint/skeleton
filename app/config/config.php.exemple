@@ -22,4 +22,13 @@ $app['db.options'] = array(
     'charset'  => 'utf8mb4',
 );
 
+$app["mail"] = array(
+     "host"       => "",
+     "port"       => "",
+     "username"   => "",
+     "password"   => "",
+     "encryption" => null,
+     "auth_mode"  => null
+);
+
 $app['debug'] = true;
