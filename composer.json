@@ -15,13 +15,15 @@
 		}
 	},
     "require": {
-		"silex/silex": "~2.0",
-        "silex/web-profiler": "^2.0",
-    	"twig/twig": "^1.28",
-        "doctrine/dbal": "~2.2",
-		"symfony/twig-bridge": "^3.2",
-		"symfony/security": "~2.8|3.0.*",
-		"symfony/asset": "^3.2",
-		"sami/sami": "3.0.*"
+        "silex/silex": "2.*",
+        "silex/web-profiler": "2.*",
+        "twig/twig": "2.*",
+        "doctrine/dbal": "2.*",
+        "symfony/security": "3.*",
+        "symfony/twig-bridge": "3.*",
+        "symfony/var-dumper": "3.*",
+        "symfony/asset": "3.*",
+        "sami/sami": "4.*",
+        "swiftmailer/swiftmailer": "6.*",
     }
 }
