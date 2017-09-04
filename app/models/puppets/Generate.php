@@ -328,10 +328,10 @@ class Generate
         $flag_date_columns  = false;
         $flag_take1st_forid = false;
 
-        $columns           = $this->getField($table);
-        $array_info        = $this->getInfos($table);
-        $object_name       = $array_info["objectName"];
-        $class_name        = $array_info["className"];
+        $columns     = $this->getField($table);
+        $array_info  = $this->getInfos($table);
+        $object_name = $array_info["objectName"];
+        $class_name  = $array_info["className"];
 
         $columns_count = count($columns);
         for ($c = 0; $c < $columns_count; $c ++) {
@@ -359,9 +359,6 @@ class Generate
         $class .= " * @copyright  2016-2017 Maqprint\n";
         $class .= " * @license    http://www.php.net/license/3_01.txt  PHP License 3.01\n";
         $class .= " * @link       https://www.maqprint.fr\n";
-        $class .= " *\n";
-        $class .= " * @since      N.A\n";
-        $class .= " * @deprecated N.A\n";
         $class .= " **/\n";
         $class .= "namespace $namespace\\entities;\n\n";
         $class .= "use Doctrine\DBAL\Connection;\n\n";
@@ -378,10 +375,6 @@ class Generate
         $class .= " * @copyright  2016-2017 Maqprint\n";
         $class .= " * @license    http://www.php.net/license/3_01.txt  PHP License 3.01\n";
         $class .= " * @link       https://www.maqprint.fr\n";
-        $class .= " *\n";
-        $class .= " * @see        N.A\n";
-        $class .= " * @since      N.A\n";
-        $class .= " * @deprecated N.A\n";
         $class .= " **/\n";
 
         $class .= "class ".$class_name."\n{\n\n";
@@ -389,28 +382,32 @@ class Generate
             $class .= "    public $".$columns[$c]["Field"].";\n";
         }
 
+        $class .= "\n    public \$dump; //-- Cassandra log \n";
+
         $class .= "\n";
         $class .= "    protected static \$db;\n";
+        $class .= "    protected static \$cassandra_log;\n";
+
         if($this->flag_force_database === true) {
             $class .= "    protected static \$database = '$this->database';\n\n";
         }
-        $class .= "    /**\n";
-        $class .= "    * @function __construct()\n";
+
+        $class .= "    /** @function __construct()\n";
         $class .= "    * @brief    Create a new $class_name object.\n";
         $class .= "    * @details  Create a new $class_name object.\n";
         $class .= "    *\n";
         $class .= "    * @param int \$$id 'id of $class_name object'\n";
         $class .= "    *\n";
         $class .= "    * @return <boolean>\n";
-        $class .= "    *\n";
-        $class .= "    * @access public\n";
         $class .= "    **/\n";
         $class .= "    public function __construct(\$$id = null) {\n";
         $class .= "        self::\$db = \$this->db();\n";
 
         if($this->flag_force_database === true) {
-            $class .= "        self::\$database = \$this->database();\n\n";
+            $class .= "        self::\$database = \$this->database();\n";
         }
+
+        $class .= "        self::\$cassandra_log = \$this->cassandraLog();\n\n";
 
         for ($c = 0; $c < $columns_count; $c ++) {
             if (($columns[$c]["Key"] == "PRI") || ($flag_take1st_forid == true && $c == 0)) {
@@ -539,19 +536,19 @@ class Generate
         } else {
             $class .= "                throw new \Exception(\"`$table` loading failed : there no `$table` of $id : \$this->$id.\");\n";
         }
+
         $class .= "            }\n";
         $class .= "        }\n\n";
+        $class .= "        \$this->dump = clone(\$this);\n";
+        $class .= "        unset(\$this->dump->dump);\n\n";
         $class .= "        return \$this;\n";
         $class .= "    }\n\n";
 
-        $class .= "    /**\n";
-        $class .= "    * @function db()\n";
+        $class .= "    /** @function db()\n";
         $class .= "    * @brief    Get the Silex® \$app['db'] object.\n";
         $class .= "    * @details  Get the Silex® \$app['db'] object.\n";
         $class .= "    *\n";
         $class .= "    * @return <boolean>\n";
-        $class .= "    *\n";
-        $class .= "    * @static\n";
         $class .= "    **/\n";
         $class .= "    protected static function db() {\n";
         $class .= "        global \$app;\n\n";
@@ -561,31 +558,41 @@ class Generate
         $class .= "        return self::\$db;\n";
         $class .= "    }\n\n";
 
+        $class .= "    /** @function cassandraLog()\n";
+        $class .= "    * @brief    Get the  \$app['cassandra_log'] object.\n";
+        $class .= "    * @details  Get the  \$app['cassandra_log'] object.\n";
+        $class .= "    *\n";
+        $class .= "    * @return <boolean>\n";
+        $class .= "    **/\n";
+        $class .= "    protected static function cassandraLog() {\n";
+        $class .= "        global \$app;\n\n";
+        $class .= "        if(self::\$cassandra_log === null) {\n";
+        $class .= "            self::\$cassandra_log = \$app[\"cassandra_log\"];\n";
+        $class .= "        }\n\n";
+        $class .= "        return self::\$cassandra_log;\n";
+        $class .= "    }\n\n";
+
         if($this->flag_force_database === true) {
-            $class .= "    /**\n";
-            $class .= "    * @function database()\n";
+            $class .= "    /** @function database()\n";
             $class .= "    * @brief    Get the name of database used.\n";
             $class .= "    * @details   Get the name of database used.\n";
             $class .= "    *\n";
             $class .= "    * @return <boolean>\n";
-            $class .= "    *\n";
-            $class .= "    * @static\n";
             $class .= "    **/\n";
             $class .= "    protected static function database() {\n";
             $class .= "        return self::\$database;\n";
             $class .= "    }\n\n";
         }
-        $class .= "    /**\n";
-        $class .= "    * @function save()\n";
+
+        $class .= "    /** @function save()\n";
         $class .= "    * @brief    save a $table object.\n";
         $class .= "    * @details  save a $table object.\n";
         $class .= "    *\n";
         $class .= "    * @return <boolean>\n";
-        $class .= "    *\n";
-        $class .= "    * @access public\n";
         $class .= "    **/\n";
         $class .= "    public function save() {\n";
         $class .= "        $".$object_name."_data = array(\n";
+
         for ($c = 0; $c < $columns_count; $c ++) {
             switch(strtolower($columns[$c]["Field"])) {
                 default:
@@ -603,38 +610,45 @@ class Generate
         }
 
         $class .= "        );\n\n";
+        $class .= "        \$".$object_name."_data_bis         = \$".$object_name."_data;\n";
+        $class .= "        \$".$object_name."_data_bis[\"dump\"] = \$this->dump;\n\n";
 
         $class .= "        if(\$this->$id) { // si c'est un update\n";
+
         if ($flag_date_columns === true) {
             $class .= "            unset($".$object_name."_data[\"date_add\"]);\n\n";
         }
+
         if($this->flag_force_database === true) {
             $class .= "            self::\$db->update(self::\$database.\".`$table`\", \$".$object_name."_data, array(\"$id\" => \$this->$id));\n";
         } else {
             $class .= "            self::\$db->update(\"`$table`\", \$".$object_name."_data, array(\"$id\" => \$this->$id));\n";
         }
+
+        $class .= "            self::\$cassandra_log->push('$table', \$this->id, 'edit', (object)\$".$object_name."_data_bis);\n";
         $class .= "        } else {\n";
+
         if($this->flag_force_database === true) {
             $class .= "            self::\$db->insert(self::\$database.\".`$table`\", \$".$object_name."_data);\n";
         } else {
             $class .= "            self::\$db->insert(\"`$table`\", \$".$object_name."_data);\n";
         }
+
         $class .= "            \$this->$id = self::\$db->lastInsertId();\n\n";
+        $class .= "            self::\$cassandra_log->push('$table', \$this->id, 'add', (object)\$".$object_name."_data_bis);\n";
         $class .= "            return \$this->$id;\n";
         $class .= "        }\n";
         $class .= "    }\n\n";
 
-        $class .= "    /**\n";
-        $class .= "    * @function remove()\n";
+        $class .= "    /** @function remove()\n";
         $class .= "    * @brief    remove a $table object.\n";
         $class .= "    * @details  remove a $table object (set date_delete).\n";
         $class .= "    *\n";
         $class .= "    * @return <boolean>\n";
-        $class .= "    *\n";
-        $class .= "    * @access public\n";
         $class .= "    **/\n";
         $class .= "    public function remove() {\n";
         $class .= "        $".$object_name."_data = array(\n";
+
         for ($c = 0; $c < $columns_count; $c ++) {
             switch(strtolower($columns[$c]["Field"])) {
                 default:
@@ -652,26 +666,27 @@ class Generate
         }
 
         $class .= "        );\n\n";
+
         if($this->flag_force_database === true) {
             $class .= "        self::\$db->update(self::\$database.\".`$table`\", \$".$object_name."_data, array(\"$id\" => \$this->$id));\n";
         } else {
             $class .= "        self::\$db->update(\"`$table`\", \$".$object_name."_data, array(\"$id\" => \$this->$id));\n";
         }
+
+        $class .= "            self::\$cassandra_log->push('$table', \$this->id, 'remove', \$this);\n";
         $class .= "        return true;\n";
         $class .= "    }\n\n";
 
 
-        $class .= "    /**\n";
-        $class .= "    * @function reload()\n";
+        $class .= "    /** @function reload()\n";
         $class .= "    * @brief    reload a $table object.\n";
         $class .= "    * @details  reload a $table object (set date_delete to NULL).\n";
         $class .= "    *\n";
         $class .= "    * @return <boolean>\n";
-        $class .= "    *\n";
-        $class .= "    * @access public\n";
         $class .= "    **/\n";
         $class .= "    public function reload() {\n";
         $class .= "        $".$object_name."_data = array(\n";
+
         for ($c = 0; $c < $columns_count; $c ++) {
             switch(strtolower($columns[$c]["Field"])) {
                 default:
@@ -686,36 +701,36 @@ class Generate
                     break;
                 case "date_delete" :
                     $flag_date_columns = true;
-                    $class .= "           \"".$columns[$c]["Field"]."\" => NULL,\n";
+                    $class .= "           \"".$columns[$c]["Field"]."\" => null,\n";
             }
         }
+
         $class .= "        );\n\n";
+
         if($this->flag_force_database === true) {
             $class .= "        self::\$db->update(self::\$database.\".`$table`\", \$".$object_name."_data, array(\"$id\" => \$this->$id));\n";
         } else {
             $class .= "        self::\$db->update(\"`$table`\", \$".$object_name."_data, array(\"$id\" => \$this->$id));\n";
         }
+
+        $class .= "            self::\$cassandra_log->push('$table', \$this->id, 'reload', \$this);\n";
         $class .= "        return true;\n";
         $class .= "    }\n\n";
 
 
-        $class .= "    /**\n";
-        $class .= "    * @function delete()\n";
+        $class .= "    /** @function delete()\n";
         $class .= "    * @brief    delete a $table object.\n";
         $class .= "    * @details  delete a $table object.\n";
         $class .= "    *\n";
-        $class .= "    * @param integer $id the id of $table object to delete\n";
-        $class .= "    *\n";
         $class .= "    * @return <boolean>\n";
-        $class .= "    *\n";
-        $class .= "    * @static\n";
         $class .= "    **/\n";
-        $class .= "    public static function delete(\$id = null) {\n";
+        $class .= "    public function delete() {\n";
         if($this->flag_force_database === true) {
-            $class .= "        self::\$db->delete(self::\$database.\".`$table`\", array(\"$id\" => \$id));\n";
+            $class .= "        self::\$db->delete(self::\$database.\".`$table`\", array(\"$id\" => \$this->id));\n";
         } else {
-            $class .= "        self::\$db->delete(\"`$table`\", array(\"$id\" => \$id));\n";
+            $class .= "        self::\$db->delete(\"`$table`\", array(\"$id\" => \$this->id));\n";
         }
+        $class .= "        self::\$cassandra_log->push('$table', \$this->id, 'delete', \$this);\n";
         $class .= "\n\n";
         $class .= "        return true;\n";
         $class .= "    }\n";
@@ -788,8 +803,7 @@ class Generate
      * @param string $namespace 'le nom du namespace'
      * @return void
      */
-    public function generateOneModel($table, $namespace)
-    {
+    public function generateOneModel($table, $namespace) {
         $res = $this->getField($table);
         $arrayInfo = $this->getInfos($table);
 
