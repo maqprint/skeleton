@@ -23,6 +23,6 @@
         "symfony/var-dumper": "3.*",
         "symfony/asset": "3.*",
         "sami/sami": "4.*",
-        "swiftmailer/swiftmailer": "6.*",
+        "swiftmailer/swiftmailer": "6.*"
     }
 }
